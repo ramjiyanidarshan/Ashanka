@@ -30,6 +30,7 @@ export default function ProviderIcon({ name, url, size = 32 }: ProviderIconProps
   if (hasError) {
     return (
       <div
+        className="provider-avatar"
         style={{
           width: size,
           height: size,
@@ -39,15 +40,13 @@ export default function ProviderIcon({ name, url, size = 32 }: ProviderIconProps
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "var(--accent-primary-dim)",
-          color: "var(--accent-primary-light)",
-          fontSize: size * 0.45,
-          fontWeight: 700,
-          border: "1px solid var(--border-subtle)",
+          backgroundColor: "var(--bg-card)",
+          border: "1px solid var(--border)",
+          fontSize: size * 0.5,
           flexShrink: 0,
         }}
       >
-        {initial}
+        🔐
       </div>
     );
   }
@@ -70,7 +69,7 @@ export default function ProviderIcon({ name, url, size = 32 }: ProviderIconProps
       }}
     >
       <img
-        src={`https://www.google.com/s2/favicons?sz=128&domain=${domain}`}
+        src={`https://www.google.com/s2/favicons?sz=64&domain=${domain}`}
         alt={`${name} icon`}
         style={{ width: "100%", height: "100%", objectFit: "contain" }}
         onError={() => setHasError(true)}
