@@ -61,9 +61,11 @@ export async function GET() {
     rotationDays = Math.max(1, parseInt(v, 10) || 90);
   } catch { /* use default */ }
 
+  const adminUser = await UserModel.findOne({});
+
   return NextResponse.json({
     security: {
-      username: readEnvKey("APP_USERNAME") || "admin",
+      username: adminUser?.username || "admin",
     },
     encryption: {
       keyMasked: aesKeyMasked,
@@ -96,12 +98,17 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { action } = body;
 
-    // ── Change admin password (kept in .env) ─────────────────────────────────
+    // ── Change admin password (stored in DB) ─────────────────────────────────
     if (action === "changePassword") {
       const { currentPassword, newPassword, confirmPassword } = body;
 
-      const storedPassword = readEnvKey("APP_PASSWORD");
-      if (currentPassword !== storedPassword) {
+      const adminUser = await UserModel.findOne({});
+      if (!adminUser) {
+        return NextResponse.json({ error: "Admin user not found in DB" }, { status: 404 });
+      }
+
+      const isValid = await bcrypt.compare(currentPassword, adminUser.passwordHash);
+      if (!isValid) {
         return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
       }
       if (!newPassword || newPassword.length < 8) {
@@ -111,16 +118,11 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
       }
 
-      // Write to .env
-      let content = fs.readFileSync(ENV_PATH, "utf-8");
-      if (/^APP_PASSWORD=/m.test(content)) {
-        content = content.replace(/^APP_PASSWORD=.*$/m, `APP_PASSWORD=${newPassword}`);
-      } else {
-        content += `\nAPP_PASSWORD=${newPassword}`;
-      }
-      fs.writeFileSync(ENV_PATH, content, "utf-8");
+      const newHash = await bcrypt.hash(newPassword, 10);
+      adminUser.passwordHash = newHash;
+      await adminUser.save();
 
-      return NextResponse.json({ ok: true, message: "Password updated. Please log in again." });
+      return NextResponse.json({ ok: true, message: "Password updated in database. Please log in again." });
     }
 
     // ── Update AES Encryption Key (stored in DB, re-encrypts all accounts) ───

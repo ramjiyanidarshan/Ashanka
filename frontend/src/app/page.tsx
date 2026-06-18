@@ -429,7 +429,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="recent-table">
                   <div className="recent-table-header">
-                    <span style={{ paddingLeft: "calc(28px + 0.625rem)" }}>Provider</span>
+                    <span>Provider</span>
                     <span>Source</span>
                     <span>Status</span>
                     <span>Added</span>
