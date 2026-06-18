@@ -89,12 +89,12 @@ export async function getTokenFromCookies(): Promise<string | null> {
  */
 export function buildAuthCookieHeader(token: string): string {
   const maxAge = 7 * 24 * 60 * 60;
-  return `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Path=/`;
+  return `${COOKIE_NAME}=${token}; HttpOnly; SameSite=None; Secure; Max-Age=${maxAge}; Path=/`;
 }
 
 /**
  * Builds a Set-Cookie header that clears the auth cookie.
  */
 export function buildClearCookieHeader(): string {
-  return `${COOKIE_NAME}=; HttpOnly; SameSite=Lax; Max-Age=0; Path=/`;
+  return `${COOKIE_NAME}=; HttpOnly; SameSite=None; Secure; Max-Age=0; Path=/`;
 }

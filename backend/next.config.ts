@@ -9,7 +9,14 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Access-Control-Allow-Origin",
-            value: process.env.FRONTEND_URL || "http://localhost:3000",
+            value: (() => {
+              let url = process.env.FRONTEND_URL || "http://localhost:3000";
+              if (url !== "http://localhost:3000" && !url.startsWith("http")) {
+                url = "https://" + url;
+              }
+              // Remove trailing slash if user added it, as CORS requires strict exact matching
+              return url.replace(/\/$/, "");
+            })(),
           },
           {
             key: "Access-Control-Allow-Methods",
