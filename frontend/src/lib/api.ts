@@ -1,0 +1,139 @@
+import type {
+  Account,
+  AccountsResponse,
+  ProvidersResponse,
+  ImportAnalysis,
+  ImportEntry,
+  ConflictDecision,
+  ImportResolveResponse,
+} from "./types";
+
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+
+class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    ...options,
+    credentials: "include", // send httpOnly cookies
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new ApiError(response.status, body.error || "Request failed");
+  }
+
+  return response.json() as Promise<T>;
+}
+
+// ─── Auth ──────────────────────────────────────────────────────────────────────
+
+export const authApi = {
+  login: (username: string, password: string) =>
+    request<{ success: boolean; username: string }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+
+  logout: () =>
+    request<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
+};
+
+// ─── Accounts ─────────────────────────────────────────────────────────────────
+
+export const accountsApi = {
+  list: () => request<AccountsResponse>("/api/accounts"),
+
+  get: (id: string) =>
+    request<{ account: Account }>(`/api/accounts/${id}`),
+
+  create: (
+    serviceProvider: string,
+    attributes: Record<string, string | null>
+  ) =>
+    request<{ account: Account }>("/api/accounts", {
+      method: "POST",
+      body: JSON.stringify({ serviceProvider, attributes }),
+    }),
+
+  update: (
+    id: string,
+    data: { serviceProvider?: string; attributes?: Record<string, string | null> }
+  ) =>
+    request<{ account: Account }>(`/api/accounts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<{ success: boolean }>(`/api/accounts/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+// ─── Providers ────────────────────────────────────────────────────────────────
+
+export const providersApi = {
+  list: () => request<ProvidersResponse>("/api/providers"),
+};
+
+// ─── Import ───────────────────────────────────────────────────────────────────
+
+export const importApi = {
+  analyze: (jsonData: Record<string, unknown>) =>
+    request<ImportAnalysis>("/api/import", {
+      method: "POST",
+      body: JSON.stringify(jsonData),
+    }),
+
+  resolve: (toInsert: ImportEntry[], resolutions: ConflictDecision[]) =>
+    request<ImportResolveResponse>("/api/import/resolve", {
+      method: "POST",
+      body: JSON.stringify({ toInsert, resolutions }),
+    }),
+};
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+
+export const exportApi = {
+  /**
+   * Downloads the export JSON file directly by triggering a browser download.
+   */
+  download: async () => {
+    const response = await fetch(`${BACKEND_URL}/api/export`, {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new ApiError(response.status, "Export failed");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `veshtit-export-${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+};
+
+export { ApiError };
