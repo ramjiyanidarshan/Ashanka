@@ -57,6 +57,9 @@ export const authApi = {
 
   logout: () =>
     request<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
+
+  verify: () =>
+    request<{ authenticated: boolean; username: string | null; sessionId: string | null }>("/api/auth/verify"),
 };
 
 // ─── Settings ────────────────────────────────────────────────────────────────
@@ -78,6 +81,46 @@ export const settingsApi = {
       method: "POST",
       body: JSON.stringify({ password }),
     }),
+
+  changeUsername: (newUsername: string) =>
+    request<{ ok: boolean; message: string; newUsername: string }>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ action: "changeUsername", newUsername }),
+    }),
+};
+
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+
+export interface SessionAuditEntry {
+  timestamp: string;
+  action: string;
+  details: string;
+}
+
+export interface Session {
+  _id: string;
+  sessionId: string;
+  username: string;
+  loginAt: string;
+  lastActiveAt: string;
+  expiresAt: string;
+  logoutAt?: string;
+  terminatedAt?: string;
+  status: "active" | "expired" | "logged_out" | "terminated";
+  ipAddress: string;
+  userAgent: string;
+  deviceType: "mobile" | "tablet" | "desktop" | "unknown";
+  os: string;
+  browser: string;
+  auditLog: SessionAuditEntry[];
+}
+
+export const sessionsApi = {
+  list: () =>
+    request<{ sessions: Session[]; currentSessionId: string | null }>("/api/sessions"),
+
+  terminate: (sessionId: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}`, { method: "DELETE" }),
 };
 
 // ─── Accounts ─────────────────────────────────────────────────────────────────

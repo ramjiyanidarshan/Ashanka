@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authApi, ApiError } from "@/lib/api";
 
@@ -12,7 +12,14 @@ export default function LoginPage() {
   const [tempToken, setTempToken] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    authApi.verify()
+      .then(() => router.replace("/accounts"))
+      .catch(() => setChecking(false));
+  }, [router]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -46,6 +53,8 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   }
+
+  if (checking) return null;
 
   return (
     <div className="login-page">

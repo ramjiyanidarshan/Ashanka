@@ -59,6 +59,7 @@ export function invalidateJwtCache(): void {
 
 export interface JwtPayload {
   username: string;
+  sessionId?: string;
   mfaPending?: boolean;
   iat?: number;
   exp?: number;

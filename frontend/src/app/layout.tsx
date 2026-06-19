@@ -1,13 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
+import PWAInit from "@/components/PWAInit";
 
 export const metadata: Metadata = {
   title: "Veshtit — Digital Account Manager",
   description:
     "Securely manage all your digital accounts with AES-256 encryption.",
-  icons: {
-    icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔐</text></svg>",
+  // icon.tsx and apple-icon.tsx in this directory are picked up automatically
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Veshtit",
   },
 };
 
@@ -15,6 +19,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0b13" },
+    { media: "(prefers-color-scheme: light)", color: "#6366f1" },
+  ],
 };
 
 export default function RootLayout({
@@ -34,6 +42,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <PWAInit />
       </body>
     </html>
   );

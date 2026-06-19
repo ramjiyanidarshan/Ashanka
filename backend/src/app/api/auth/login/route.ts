@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { UserModel } from "@/lib/model";
 import { signToken, signTempToken, buildAuthCookieHeader } from "@/lib/auth";
+import { parseUserAgent, SessionModel } from "@/lib/session";
+
+const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +38,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = await signToken({ username: user.username });
+    const sessionId = randomUUID();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + SESSION_EXPIRY_MS);
+    const ip = (request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "Unknown").split(",")[0].trim();
+    const ua = request.headers.get("user-agent") ?? "";
+    const { deviceType, os, browser } = parseUserAgent(ua);
+
+    // Create session record (fire-and-forget — must not block login)
+    SessionModel.insertOne({
+      sessionId,
+      username: user.username,
+      loginAt: now,
+      lastActiveAt: now,
+      expiresAt,
+      status: "active",
+      ipAddress: ip,
+      userAgent: ua,
+      deviceType,
+      os,
+      browser,
+      auditLog: [{ timestamp: now, action: "auth.login", details: "Signed in" }],
+    }).catch(console.error);
+
+    const token = await signToken({ username: user.username, sessionId });
     const cookieHeader = buildAuthCookieHeader(token);
 
     return NextResponse.json(

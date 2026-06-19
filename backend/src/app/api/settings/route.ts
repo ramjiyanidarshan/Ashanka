@@ -161,7 +161,62 @@ export async function PUT(req: NextRequest) {
       const newHash = await bcrypt.hash(newPassword, 10);
       await UserModel.updateOne(adminUser._id!.toString(), { passwordHash: newHash });
 
+      const sessionId = req.headers.get("x-session-id");
+      if (sessionId) {
+        const { appendAuditEntry } = await import("@/lib/session");
+        await appendAuditEntry(sessionId, "settings.password_changed", "Admin password changed");
+      }
+
       return NextResponse.json({ ok: true, message: "Password updated in database. Please log in again." });
+    }
+
+    // ── Change admin username ─────────────────────────────────────────────────
+    if (action === "changeUsername") {
+      const { newUsername } = body as { newUsername: string };
+
+      if (!newUsername || typeof newUsername !== "string") {
+        return NextResponse.json({ error: "New username is required" }, { status: 400 });
+      }
+
+      const trimmed = newUsername.trim().toLowerCase();
+
+      if (trimmed.length < 3) {
+        return NextResponse.json({ error: "Username must be at least 3 characters" }, { status: 400 });
+      }
+
+      if (!/^[a-z0-9_.\-]+$/.test(trimmed)) {
+        return NextResponse.json(
+          { error: "Username may only contain letters, numbers, underscores, dots, and hyphens" },
+          { status: 400 }
+        );
+      }
+
+      const adminUser = await UserModel.findOne({});
+      if (!adminUser) {
+        return NextResponse.json({ error: "Admin user not found" }, { status: 404 });
+      }
+
+      if (adminUser.username === trimmed) {
+        return NextResponse.json({ ok: true, message: "Username is already set to that value." });
+      }
+
+      await UserModel.updateOne(adminUser._id!.toString(), { username: trimmed });
+
+      const sessionId = req.headers.get("x-session-id");
+      if (sessionId) {
+        const { appendAuditEntry } = await import("@/lib/session");
+        await appendAuditEntry(
+          sessionId,
+          "settings.username_changed",
+          `Username changed to ${trimmed}`
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+        message: "Username updated. Please log in again with your new username.",
+        newUsername: trimmed,
+      });
     }
 
     // ── Update AES Encryption Key (stored in DB, re-encrypts all accounts) ───

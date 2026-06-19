@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
-import { settingsApi } from "@/lib/api";
+import { settingsApi, sessionsApi, Session } from "@/lib/api";
 import { useTheme } from "@/context/ThemeContext";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
@@ -17,7 +17,7 @@ interface Settings {
   generator?: { length: number; uppercase: boolean; lowercase: boolean; numbers: boolean; symbols: boolean };
 }
 
-type SectionKey = "security" | "encryption" | "jwt" | "database" | "appearance" | "data";
+type SectionKey = "security" | "sessions" | "encryption" | "jwt" | "database" | "appearance" | "data";
 type Msg = { type: "success" | "error" | "warning"; text: string } | null;
 
 function Alert({ msg }: { msg: Msg }) {
@@ -122,6 +122,17 @@ export default function SettingsPage() {
 
   const [dbTesting, setDbTesting] = useState(false);
   const [dbResult, setDbResult] = useState<{ status: string; latencyMs?: number; error?: string } | null>(null);
+
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [terminatingId, setTerminatingId] = useState<string | null>(null);
+  const [sessionsMsg, setSessionsMsg] = useState<Msg>(null);
+
+  const [unameForm, setUnameForm] = useState({ newUsername: "" });
+  const [unameLoading, setUnameLoading] = useState(false);
+  const [unameMsg, setUnameMsg] = useState<Msg>(null);
 
   const load = useCallback(async () => {
     try {
@@ -288,8 +299,64 @@ export default function SettingsPage() {
     finally { setDbTesting(false); }
   }
 
+  async function loadSessions() {
+    setSessionsLoading(true); setSessionsMsg(null);
+    try {
+      const res = await sessionsApi.list();
+      setSessions(res.sessions);
+      setCurrentSessionId(res.currentSessionId);
+    } catch {
+      setSessionsMsg({ type: "error", text: "Failed to load sessions" });
+    } finally {
+      setSessionsLoading(false);
+    }
+  }
+
+  async function handleTerminate(sessionId: string) {
+    setTerminatingId(sessionId); setSessionsMsg(null);
+    try {
+      await sessionsApi.terminate(sessionId);
+      setSessions((prev) => prev.map((s) => s.sessionId === sessionId ? { ...s, status: "terminated" as const } : s));
+      setSessionsMsg({ type: "success", text: "Session terminated successfully." });
+    } catch (err: any) {
+      setSessionsMsg({ type: "error", text: err.message || "Failed to terminate session" });
+    } finally {
+      setTerminatingId(null);
+    }
+  }
+
+  async function handleChangeUsername(e: React.FormEvent) {
+    e.preventDefault();
+    setUnameLoading(true); setUnameMsg(null);
+    try {
+      const res = await settingsApi.changeUsername(unameForm.newUsername);
+      setUnameMsg({ type: "success", text: res.message });
+      setUnameForm({ newUsername: "" });
+      load();
+    } catch (err: any) {
+      setUnameMsg({ type: "error", text: err.message || "Failed to change username" });
+    } finally {
+      setUnameLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeSection === "sessions") loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection]);
+
+  function generateUsername() {
+    const adjectives = ["swift", "bold", "calm", "dark", "epic", "fast", "gold", "iron", "jade", "keen", "lush", "mint", "nova", "pale", "rare", "sage", "tall", "vast", "warm", "zeal"];
+    const nouns = ["wolf", "hawk", "bear", "lynx", "fox", "deer", "crow", "seal", "pike", "kite", "wren", "dove", "mole", "vole", "ibis", "crab", "tern", "newt", "toad", "wasp"];
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const num = Math.floor(Math.random() * 900) + 100;
+    setUnameForm({ newUsername: `${adj}_${noun}_${num}` });
+  }
+
   const navItems: { key: SectionKey; label: string; icon: React.ReactNode }[] = [
     { key: "security", label: "Security", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> },
+    { key: "sessions", label: "Sessions", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg> },
     { key: "encryption", label: "Encryption", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg> },
     { key: "jwt", label: "JWT", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" /></svg> },
     { key: "database", label: "Database", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg> },
@@ -361,7 +428,37 @@ export default function SettingsPage() {
                       {/* Admin Account */}
                       <Card>
                         <CardHeader icon="👤" title="Admin Account" subtitle="Basic profile credentials" />
-                        <InfoRow label="Username" value={<code style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", background: "var(--bg-hover)", padding: "0.2rem 0.6rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>{settings?.security.username}</code>} />
+                        <InfoRow label="Current Username" value={<code style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", background: "var(--bg-hover)", padding: "0.2rem 0.6rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>{settings?.security.username}</code>} />
+                        <div style={{ marginTop: "1.25rem", paddingTop: "1.25rem", borderTop: "1px solid var(--border-subtle)" }}>
+                          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+                            Change your login username for double security — you must remember both your username and password.
+                          </p>
+                          <Alert msg={unameMsg} />
+                          <form className="settings-form" onSubmit={handleChangeUsername}>
+                            <div className="form-group">
+                              <label className="form-label" htmlFor="new-username">New Username</label>
+                              <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <input
+                                  id="new-username"
+                                  type="text"
+                                  className="form-input"
+                                  style={{ fontFamily: "var(--font-mono)" }}
+                                  value={unameForm.newUsername}
+                                  onChange={(e) => setUnameForm({ newUsername: e.target.value })}
+                                  placeholder="Min 3 chars, letters / numbers / _.-"
+                                  minLength={3}
+                                  required
+                                />
+                                <button type="button" className="btn btn-secondary" style={{ flexShrink: 0, whiteSpace: "nowrap" }} onClick={generateUsername} title="Generate random username">
+                                  🎲
+                                </button>
+                              </div>
+                            </div>
+                            <button type="submit" className="btn btn-primary" disabled={unameLoading}>
+                              {unameLoading ? <Spinner /> : "Change Username"}
+                            </button>
+                          </form>
+                        </div>
                       </Card>
 
                       {/* Two-Factor Authentication */}
@@ -524,6 +621,136 @@ export default function SettingsPage() {
                           </button>
                         </form>
                       </Card>
+                    </div>
+                  </div>
+                )}
+
+                {/* ══════════════════ SESSIONS ══════════════════ */}
+                {activeSection === "sessions" && (
+                  <div className="settings-section settings-section-animate">
+                    <SectionTitle
+                      icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>}
+                      desc="All login sessions tied to your account — view device info, trace audit events, and terminate any active session remotely"
+                    >
+                      Active Sessions
+                    </SectionTitle>
+
+                    <Alert msg={sessionsMsg} />
+
+                    {sessionsLoading ? (
+                      <div className="empty-state"><Spinner /></div>
+                    ) : sessions.length === 0 ? (
+                      <Card>
+                        <div className="empty-state" style={{ padding: "2rem 0" }}>
+                          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
+                          <p style={{ color: "var(--text-muted)", marginTop: "0.75rem" }}>No session records found.</p>
+                        </div>
+                      </Card>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                        {sessions.map((session) => {
+                          const isCurrent = session.sessionId === currentSessionId;
+                          const isExpanded = expandedSession === session.sessionId;
+                          const statusColors: Record<string, { bg: string; color: string; border: string }> = {
+                            active: { bg: "rgba(74,222,128,0.1)", color: "#4ade80", border: "rgba(74,222,128,0.3)" },
+                            expired: { bg: "rgba(251,191,36,0.1)", color: "#fbbf24", border: "rgba(251,191,36,0.3)" },
+                            logged_out: { bg: "rgba(148,163,184,0.1)", color: "#94a3b8", border: "rgba(148,163,184,0.3)" },
+                            terminated: { bg: "rgba(244,63,94,0.1)", color: "#f43f5e", border: "rgba(244,63,94,0.3)" },
+                          };
+                          const sc = statusColors[session.status] ?? statusColors.expired;
+                          const deviceIcon = session.deviceType === "mobile" || session.deviceType === "tablet" ? "📱" : session.deviceType === "desktop" ? "💻" : "❓";
+                          const loginDate = new Date(session.loginAt).toLocaleString();
+                          const lastActiveDate = new Date(session.lastActiveAt).toLocaleString();
+                          const endDate = session.logoutAt ? new Date(session.logoutAt).toLocaleString()
+                            : session.terminatedAt ? new Date(session.terminatedAt).toLocaleString()
+                            : null;
+
+                          return (
+                            <div key={session.sessionId} style={{ background: "var(--bg-glass)", backdropFilter: "blur(20px)", border: `1px solid ${isCurrent ? "rgba(99,102,241,0.4)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-xl)", overflow: "hidden", boxShadow: isCurrent ? "0 0 0 1px rgba(99,102,241,0.2)" : "none" }}>
+                              {/* Session header */}
+                              <div style={{ padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+                                <div style={{ fontSize: "1.75rem", lineHeight: 1 }}>{deviceIcon}</div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.25rem" }}>
+                                    <span style={{ fontWeight: 600, fontSize: "0.95rem", color: "var(--text-primary)" }}>{session.os} · {session.browser}</span>
+                                    {isCurrent && (
+                                      <span style={{ fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "999px", background: "rgba(99,102,241,0.15)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.35)" }}>
+                                        Current
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                                    <span>IP: {session.ipAddress}</span>
+                                    <span>Login: {loginDate}</span>
+                                    <span>Active: {lastActiveDate}</span>
+                                    {endDate && <span>{session.status === "logged_out" ? "Logout" : "Ended"}: {endDate}</span>}
+                                  </div>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
+                                  <span style={{ fontSize: "0.75rem", fontWeight: 600, padding: "0.25rem 0.75rem", borderRadius: "999px", background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, textTransform: "capitalize" }}>
+                                    {session.status.replace("_", " ")}
+                                  </span>
+                                  {session.status === "active" && !isCurrent && (
+                                    <button
+                                      className="btn btn-secondary"
+                                      style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem", color: "#f43f5e", borderColor: "rgba(244,63,94,0.3)" }}
+                                      disabled={terminatingId === session.sessionId}
+                                      onClick={() => handleTerminate(session.sessionId)}
+                                    >
+                                      {terminatingId === session.sessionId ? <Spinner /> : "Terminate"}
+                                    </button>
+                                  )}
+                                  <button
+                                    className="btn btn-ghost"
+                                    style={{ fontSize: "0.8rem", padding: "0.35rem 0.5rem" }}
+                                    onClick={() => setExpandedSession(isExpanded ? null : session.sessionId)}
+                                    title={isExpanded ? "Collapse audit log" : "Expand audit log"}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                                      <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Audit log */}
+                              {isExpanded && (
+                                <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "1rem 1.5rem", background: "var(--bg-secondary)" }}>
+                                  <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                    Audit Trail
+                                  </p>
+                                  {session.auditLog && session.auditLog.length > 0 ? (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                                      {session.auditLog.map((entry, i) => (
+                                        <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start", fontSize: "0.825rem" }}>
+                                          <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.75rem", flexShrink: 0, paddingTop: "0.1rem" }}>
+                                            {new Date(entry.timestamp).toLocaleString()}
+                                          </span>
+                                          <span style={{ color: "var(--accent-primary)", fontFamily: "var(--font-mono)", fontSize: "0.75rem", flexShrink: 0, paddingTop: "0.1rem" }}>
+                                            {entry.action}
+                                          </span>
+                                          <span style={{ color: "var(--text-secondary)" }}>{entry.details}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>No audit events recorded.</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
+                      <button className="btn btn-secondary" onClick={loadSessions} disabled={sessionsLoading}>
+                        {sessionsLoading ? <Spinner /> : <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.93" /></svg>
+                          Refresh
+                        </>}
+                      </button>
                     </div>
                   </div>
                 )}
