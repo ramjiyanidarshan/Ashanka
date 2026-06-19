@@ -7,6 +7,9 @@ import { authApi, ApiError } from "@/lib/api";
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [tempToken, setTempToken] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -17,13 +20,23 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await authApi.login(username, password);
-      router.push("/");
+      if (mfaRequired) {
+        await authApi.verifyMfa(tempToken, mfaCode);
+        router.push("/");
+      } else {
+        const res = await authApi.login(username, password);
+        if (res.mfaRequired && res.tempToken) {
+          setMfaRequired(true);
+          setTempToken(res.tempToken);
+        } else {
+          router.push("/");
+        }
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(
           err.status === 401
-            ? "Invalid username or password"
+            ? "Invalid credentials"
             : "Login failed. Please try again."
         );
       } else {
@@ -52,38 +65,59 @@ export default function LoginPage() {
         <form className="login-form" onSubmit={handleLogin}>
           {error && <div className="login-error" id="login-error">{error}</div>}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="login-username">
-              Username
-            </label>
-            <input
-              id="login-username"
-              type="text"
-              className="form-input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              autoComplete="username"
-              autoFocus
-              required
-            />
-          </div>
+          {!mfaRequired ? (
+            <>
+              <div className="form-group">
+                <label className="form-label" htmlFor="login-username">
+                  Username
+                </label>
+                <input
+                  id="login-username"
+                  type="text"
+                  className="form-input"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your username"
+                  autoComplete="username"
+                  autoFocus
+                  required
+                />
+              </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="login-password">
-              Password
-            </label>
-            <input
-              id="login-password"
-              type="password"
-              className="form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              required
-            />
-          </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="login-password">
+                  Password
+                </label>
+                <input
+                  id="login-password"
+                  type="password"
+                  className="form-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+            </>
+          ) : (
+            <div className="form-group">
+              <label className="form-label" htmlFor="login-mfa">
+                Authenticator Code
+              </label>
+              <input
+                id="login-mfa"
+                type="text"
+                className="form-input"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                placeholder="Enter 6-digit code"
+                autoComplete="one-time-code"
+                autoFocus
+                required
+              />
+            </div>
+          )}
 
           <button
             id="login-submit"
@@ -105,10 +139,10 @@ export default function LoginPage() {
                 >
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
-                Signing in...
+                {mfaRequired ? "Verifying..." : "Signing in..."}
               </>
             ) : (
-              "Sign In"
+              mfaRequired ? "Verify Code" : "Sign In"
             )}
           </button>
         </form>

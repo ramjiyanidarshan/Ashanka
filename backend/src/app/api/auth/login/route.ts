@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { UserModel } from "@/lib/model";
-import { signToken, loadJwtSecret, buildAuthCookieHeader } from "@/lib/auth";
+import { signToken, signTempToken, loadJwtSecret, buildAuthCookieHeader } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +28,14 @@ export async function POST(request: NextRequest) {
 
     // Prime the JWT secret cache so proxy.ts can read it synchronously
     await loadJwtSecret();
+
+    if (user.mfaEnabled) {
+      const tempToken = await signTempToken({ username: user.username, mfaPending: true });
+      return NextResponse.json(
+        { success: true, mfaRequired: true, tempToken },
+        { status: 200 }
+      );
+    }
 
     const token = await signToken({ username: user.username });
     const cookieHeader = buildAuthCookieHeader(token);

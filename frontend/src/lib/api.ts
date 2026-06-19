@@ -42,17 +42,42 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-// ─── Auth ──────────────────────────────────────────────────────────────────────
-
 export const authApi = {
   login: (username: string, password: string) =>
-    request<{ success: boolean; username: string }>("/api/auth/login", {
+    request<{ success: boolean; username?: string; mfaRequired?: boolean; tempToken?: string }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
 
+  verifyMfa: (tempToken: string, code: string) =>
+    request<{ success: boolean; username: string }>("/api/auth/verify-mfa", {
+      method: "POST",
+      body: JSON.stringify({ tempToken, code }),
+    }),
+
   logout: () =>
     request<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
+};
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export const settingsApi = {
+  generateMfa: () =>
+    request<{ success: boolean; qrCode: string; secret: string }>("/api/settings/mfa/generate", {
+      method: "POST",
+    }),
+
+  enableMfa: (code: string) =>
+    request<{ success: boolean }>("/api/settings/mfa/enable", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+
+  disableMfa: (password: string) =>
+    request<{ success: boolean }>("/api/settings/mfa/disable", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
 };
 
 // ─── Accounts ─────────────────────────────────────────────────────────────────

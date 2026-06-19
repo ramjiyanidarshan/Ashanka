@@ -65,21 +65,24 @@ export async function GET() {
     const statusBreakdown: Record<string, number> = { Active: 0, Disable: 0, Deleted: 0, Other: 0 };
 
     for (const doc of allDocs) {
-      const encryptedStatus = (doc.attributes as Record<string, string | null>)?.Status ?? null;
       let status = "Other";
+      const rawStatus = (doc.attributes as Record<string, string | null>)?.Status ?? null;
 
-      if (encryptedStatus) {
-        try {
-          const plaintext = await decryptValue(encryptedStatus, db);
-          // Only accept known status values
-          if (["Active", "Disable", "Deleted"].includes(plaintext)) {
-            status = plaintext;
-          } else {
-            status = "Other";
+      if (rawStatus) {
+        // Fast path: if it doesn't match the `iv:authTag:ciphertext` format, it's already plaintext
+        const parts = rawStatus.split(":");
+        let plaintext = rawStatus;
+
+        if (parts.length === 3 && parts[0].length === 16 && parts[1].length === 24) {
+          try {
+            plaintext = await decryptValue(rawStatus, db);
+          } catch {
+            plaintext = "Other";
           }
-        } catch {
-          // Decryption failed — keep "Other"
-          status = "Other";
+        }
+
+        if (["Active", "Disable", "Deleted"].includes(plaintext)) {
+          status = plaintext;
         }
       }
 
@@ -113,18 +116,23 @@ export async function GET() {
 
     const recentAccounts = await Promise.all(
       recentDocs.map(async (a) => {
-        const encryptedStatus = (a.attributes as Record<string, string | null>)?.Status ?? null;
+        const rawStatus = (a.attributes as Record<string, string | null>)?.Status ?? null;
         let status = "Active"; // sensible default for display
 
-        if (encryptedStatus) {
-          try {
-            const plaintext = await decryptValue(encryptedStatus, db);
-            if (["Active", "Disable", "Deleted"].includes(plaintext)) {
-              status = plaintext;
+        if (rawStatus) {
+          const parts = rawStatus.split(":");
+          let plaintext = rawStatus;
+
+          if (parts.length === 3 && parts[0].length === 16 && parts[1].length === 24) {
+            try {
+              plaintext = await decryptValue(rawStatus, db);
+            } catch {
+              plaintext = "Active";
             }
-          } catch {
-            // Decryption failed — default to Active
-            status = "Active";
+          }
+
+          if (["Active", "Disable", "Deleted"].includes(plaintext)) {
+            status = plaintext;
           }
         }
 

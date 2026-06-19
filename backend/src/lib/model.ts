@@ -163,6 +163,8 @@ export interface UserDocument extends MinimalDocument {
   _id?: ObjectId;
   username: string;
   passwordHash: string;
+  mfaSecret?: string;
+  mfaEnabled?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

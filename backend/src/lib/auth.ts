@@ -47,6 +47,7 @@ export function invalidateJwtCache(): void {
 
 export interface JwtPayload {
   username: string;
+  mfaPending?: boolean;
   iat?: number;
   exp?: number;
 }
@@ -59,6 +60,16 @@ export async function signToken(
 ): Promise<string> {
   const secret = await loadJwtSecret();
   return jwt.sign(payload, secret, { expiresIn: TOKEN_EXPIRY });
+}
+
+/**
+ * Signs a short-lived temporary token for MFA verification.
+ */
+export async function signTempToken(
+  payload: Omit<JwtPayload, "iat" | "exp">
+): Promise<string> {
+  const secret = await loadJwtSecret();
+  return jwt.sign(payload, secret, { expiresIn: "5m" });
 }
 
 /**

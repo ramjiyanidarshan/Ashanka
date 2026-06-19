@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/api/auth/login"];
+const PUBLIC_PATHS = ["/api/auth/login", "/api/auth/verify-mfa"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,9 +12,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow unauthenticated access to login and options requests
+  // Allow unauthenticated access to login/verify and options requests
   if (
-    pathname === "/api/auth/login" ||
+    PUBLIC_PATHS.some((p) => pathname === p) ||
     request.method === "OPTIONS"
   ) {
     return NextResponse.next();

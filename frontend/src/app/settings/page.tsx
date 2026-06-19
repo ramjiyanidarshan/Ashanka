@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import { settingsApi } from "@/lib/api";
 import crypto from "crypto";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
 
 interface Settings {
-  security: { username: string };
+  security: { username: string; mfaEnabled?: boolean };
   encryption: { keyMasked: string; algorithm: string };
   jwt: { secretMasked: string };
   database: { uriMasked: string; status: "connected" | "error"; latencyMs: number | null };
@@ -57,6 +58,18 @@ export default function SettingsPage() {
   const [rotationDays, setRotationDays] = useState(90);
   const [rotationLoading, setRotationLoading] = useState(false);
   const [rotationMsg, setRotationMsg] = useState<Msg>(null);
+
+  // ── MFA ────────────────────────────────────────────────────────────────────
+  const [mfaSetupVisible, setMfaSetupVisible] = useState(false);
+  const [mfaQrCode, setMfaQrCode] = useState("");
+  const [mfaSecretText, setMfaSecretText] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaMsg, setMfaMsg] = useState<Msg>(null);
+
+  const [mfaDisableVisible, setMfaDisableVisible] = useState(false);
+  const [mfaDisablePwd, setMfaDisablePwd] = useState("");
+  const [mfaDisableLoading, setMfaDisableLoading] = useState(false);
 
   // ── AES Key ────────────────────────────────────────────────────────────────
   const [aesKey, setAesKey] = useState("");
@@ -123,6 +136,53 @@ export default function SettingsPage() {
       if (ok) load();
     } catch { setRotationMsg({ type: "error", text: "Network error" }); }
     finally { setRotationLoading(false); }
+  }
+
+  // ── MFA Handlers ───────────────────────────────────────────────────────────
+  async function handleGenerateMfa() {
+    setMfaLoading(true); setMfaMsg(null);
+    try {
+      const res = await settingsApi.generateMfa();
+      setMfaQrCode(res.qrCode);
+      setMfaSecretText(res.secret);
+      setMfaSetupVisible(true);
+    } catch (err: any) {
+      setMfaMsg({ type: "error", text: err.message || "Failed to generate MFA" });
+    } finally {
+      setMfaLoading(false);
+    }
+  }
+
+  async function handleEnableMfa(e: React.FormEvent) {
+    e.preventDefault();
+    setMfaLoading(true); setMfaMsg(null);
+    try {
+      await settingsApi.enableMfa(mfaCode);
+      setMfaMsg({ type: "success", text: "MFA enabled successfully!" });
+      setMfaSetupVisible(false);
+      setMfaCode("");
+      load();
+    } catch (err: any) {
+      setMfaMsg({ type: "error", text: err.message || "Invalid code" });
+    } finally {
+      setMfaLoading(false);
+    }
+  }
+
+  async function handleDisableMfa(e: React.FormEvent) {
+    e.preventDefault();
+    setMfaDisableLoading(true); setMfaMsg(null);
+    try {
+      await settingsApi.disableMfa(mfaDisablePwd);
+      setMfaMsg({ type: "success", text: "MFA disabled successfully." });
+      setMfaDisableVisible(false);
+      setMfaDisablePwd("");
+      load();
+    } catch (err: any) {
+      setMfaMsg({ type: "error", text: err.message || "Failed to disable MFA" });
+    } finally {
+      setMfaDisableLoading(false);
+    }
   }
 
   async function handleUpdateAesKey() {
@@ -256,7 +316,79 @@ export default function SettingsPage() {
                       <span className="settings-info-label">Admin username</span>
                       <code className="settings-info-value">{settings?.security.username}</code>
                     </div>
+
+                    {/* ── MFA Section ────────────────────────────────────────── */}
                     <div className="settings-divider" />
+                    <div className="settings-section-title" style={{ marginTop: "1rem" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                      Two-Factor Authentication (2FA/MFA)
+                    </div>
+                    <p className="settings-desc">Secure your account with a Time-based One-Time Password (TOTP) from an authenticator app.</p>
+                    
+                    <div className="settings-info-row">
+                      <span className="settings-info-label">Status</span>
+                      {settings?.security.mfaEnabled ? (
+                        <span className="status-badge-inline" style={{ color: "#4ade80", background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.3)" }}>
+                          <span className="status-dot" style={{ background: "#4ade80" }} />Enabled
+                        </span>
+                      ) : (
+                        <span className="status-badge-inline" style={{ color: "#f43f5e", background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.3)" }}>
+                          <span className="status-dot" style={{ background: "#f43f5e" }} />Disabled
+                        </span>
+                      )}
+                    </div>
+
+                    <Alert msg={mfaMsg} />
+
+                    {settings?.security.mfaEnabled ? (
+                      !mfaDisableVisible ? (
+                        <button className="btn btn-secondary" style={{ color: "#f43f5e", borderColor: "rgba(244,63,94,0.25)" }} onClick={() => setMfaDisableVisible(true)}>
+                          Disable MFA
+                        </button>
+                      ) : (
+                        <form className="settings-form" onSubmit={handleDisableMfa} style={{ marginTop: "1rem", background: "var(--bg-secondary)", padding: "1rem", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
+                          <p style={{ marginBottom: "1rem", fontSize: "0.9rem" }}>Enter your password to disable MFA.</p>
+                          <div className="form-group">
+                            <label className="form-label" htmlFor="mfa-disable-pwd">Password</label>
+                            <input id="mfa-disable-pwd" type="password" className="form-input" value={mfaDisablePwd} onChange={(e) => setMfaDisablePwd(e.target.value)} required />
+                          </div>
+                          <div style={{ display: "flex", gap: "0.5rem" }}>
+                            <button type="button" className="btn btn-ghost" onClick={() => { setMfaDisableVisible(false); setMfaDisablePwd(""); }}>Cancel</button>
+                            <button type="submit" className="btn btn-danger" disabled={mfaDisableLoading}>
+                              {mfaDisableLoading ? <Spinner /> : "Disable MFA"}
+                            </button>
+                          </div>
+                        </form>
+                      )
+                    ) : (
+                      !mfaSetupVisible ? (
+                        <button className="btn btn-primary" onClick={handleGenerateMfa} disabled={mfaLoading}>
+                          {mfaLoading ? <Spinner /> : "Set up MFA"}
+                        </button>
+                      ) : (
+                        <div style={{ marginTop: "1rem", background: "var(--bg-secondary)", padding: "1rem", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
+                          <p style={{ marginBottom: "1rem", fontSize: "0.9rem" }}>1. Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy).</p>
+                          <div style={{ background: "white", padding: "1rem", display: "inline-block", borderRadius: "8px", marginBottom: "1rem" }}>
+                            {mfaQrCode && <img src={mfaQrCode} alt="MFA QR Code" width="150" height="150" />}
+                          </div>
+                          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>Manual code: <code className="mono">{mfaSecretText}</code></p>
+                          <form className="settings-form" onSubmit={handleEnableMfa}>
+                            <p style={{ marginBottom: "0.5rem", fontSize: "0.9rem" }}>2. Enter the 6-digit code from the app to verify.</p>
+                            <div className="form-group" style={{ maxWidth: "200px" }}>
+                              <input type="text" className="form-input" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} placeholder="000000" maxLength={6} required />
+                            </div>
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                              <button type="button" className="btn btn-ghost" onClick={() => { setMfaSetupVisible(false); setMfaCode(""); }}>Cancel</button>
+                              <button type="submit" className="btn btn-primary" disabled={mfaLoading}>
+                                {mfaLoading ? <Spinner /> : "Verify & Enable"}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      )
+                    )}
+
+                    <div className="settings-divider" style={{ marginTop: "2rem" }} />
                     <p className="settings-desc">Change your admin password. This is stored in the server <code>.env</code> file.</p>
                     <Alert msg={pwMsg} />
                     <form className="settings-form" onSubmit={handleChangePassword}>

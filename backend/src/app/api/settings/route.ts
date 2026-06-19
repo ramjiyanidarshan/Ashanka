@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSetting, setSetting, invalidateSetting, SETTING_KEYS } from "@/lib/settings";
+import { UserModel } from "@/lib/model";
+import bcrypt from "bcryptjs";
 import fs from "fs";
 import path from "path";
 
@@ -66,6 +68,7 @@ export async function GET() {
   return NextResponse.json({
     security: {
       username: adminUser?.username || "admin",
+      mfaEnabled: adminUser?.mfaEnabled || false,
     },
     encryption: {
       keyMasked: aesKeyMasked,
