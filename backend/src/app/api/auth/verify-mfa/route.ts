@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const cookieHeader = buildAuthCookieHeader(token);
 
     return NextResponse.json(
-      { success: true, username: user.username },
+      { success: true, username: user.username, token },
       { status: 200, headers: { "Set-Cookie": cookieHeader } }
     );
   } catch (error) {
