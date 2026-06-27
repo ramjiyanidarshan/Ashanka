@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Veshtit",
-    short_name: "Veshtit",
-    description: "Securely manage your digital accounts with AES-256 encryption.",
+    name: "अशङ्क",
+    short_name: "अशङ्क",
+    description: "अशङ्क (aśaṅka) — Secure. Manage your digital accounts with AES-256 encryption.",
     start_url: "/accounts",
     scope: "/",
     display: "standalone",

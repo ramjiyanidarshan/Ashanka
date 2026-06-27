@@ -301,10 +301,10 @@ export default function AccountDetail({
         {accounts.map((account, idx) => (
           <div key={account._id} className="account-card" id={`account-card-${account._id}`}>
             <div className="account-card-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", minWidth: 0, flex: "1 1 0", overflow: "hidden" }}>
                 <ProviderIcon name={providerName} url={getFirstUrl(account)} size={32} />
-                <div>
-                  <div style={{ fontSize: "0.875rem", fontWeight: 600 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "0.875rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {account.attributes["Title"] || account.attributes["title"] || account.attributes["Label"] || account.attributes["label"] || `Account ${idx + 1}`}
                   </div>
                    <div className="account-card-meta" suppressHydrationWarning>
@@ -316,7 +316,7 @@ export default function AccountDetail({
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
                 {/* Expiry badge */}
                 {account.isExpired && (
                   <span style={{

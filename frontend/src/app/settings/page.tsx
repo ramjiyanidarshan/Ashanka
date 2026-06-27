@@ -438,7 +438,7 @@ export default function SettingsPage() {
         <div className="settings-header">
           <div>
             <h1 className="dashboard-title">Settings</h1>
-            <p className="dashboard-subtitle">Manage your Veshtit configuration &amp; security preferences</p>
+            <p className="dashboard-subtitle">Manage your अशङ्क configuration &amp; security preferences</p>
           </div>
         </div>
 

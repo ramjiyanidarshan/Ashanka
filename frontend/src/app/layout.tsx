@@ -4,14 +4,13 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import PWAInit from "@/components/PWAInit";
 
 export const metadata: Metadata = {
-  title: "Veshtit — Digital Account Manager",
+  title: "अशङ्क — Digital Account Manager",
   description:
-    "Securely manage all your digital accounts with AES-256 encryption.",
-  // icon.tsx and apple-icon.tsx in this directory are picked up automatically
+    "अशङ्क (aśaṅka) — Secure. Manage all your digital accounts with AES-256 encryption.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Veshtit",
+    title: "अशङ्क",
   },
 };
 

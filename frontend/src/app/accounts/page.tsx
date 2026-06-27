@@ -625,7 +625,7 @@ export default function DashboardPage() {
                       <div className="empty-state-icon" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                       </div>
-                      <p className="empty-state-title">Welcome to Veshtit</p>
+                      <p className="empty-state-title brand-devanagari">अशङ्क में आपका स्वागत है</p>
                       <p className="empty-state-desc">
                         Create your first account to get started.
                       </p>
