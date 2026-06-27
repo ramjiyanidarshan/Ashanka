@@ -233,13 +233,21 @@ export default function AccountForm({
           ([k]) => k.toLowerCase() === "status"
         )?.[1] ?? "Active";
       setStatus((statusVal as StatusValue) ?? "Active");
-      setRows(
-        Object.entries(initialData.attributes)
-          .filter(([k]) => k.toLowerCase() !== "status")
-          .map(([key, value]) => ({ key, value: value ?? "" }))
-      );
+
+      const loadedRows = Object.entries(initialData.attributes)
+        .filter(([k]) => k.toLowerCase() !== "status")
+        .map(([key, value]) => ({ key, value: value ?? "" }));
+
+      // If the attributes don't contain a Title field, prepend one
+      const hasTitle = loadedRows.some((r) => r.key.toLowerCase() === "title");
+      if (!hasTitle) {
+        loadedRows.unshift({ key: "Title", value: "" });
+      }
+
+      setRows(loadedRows);
     } else {
       setRows([
+        { key: "Title", value: "" },
         { key: "E-Mail", value: "" },
         { key: "Password", value: "" },
       ]);

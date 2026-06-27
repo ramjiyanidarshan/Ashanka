@@ -126,7 +126,7 @@ export const sessionsApi = {
 // ─── Accounts ─────────────────────────────────────────────────────────────────
 
 export const accountsApi = {
-  list: () => request<AccountsResponse>("/api/accounts"),
+  list: (filter?: string) => request<AccountsResponse>(`/api/accounts${filter ? `?filter=${filter}` : ""}`),
 
   get: (id: string) =>
     request<{ account: Account }>(`/api/accounts/${id}`),

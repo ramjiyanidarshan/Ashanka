@@ -40,6 +40,53 @@ interface AttributeValueProps {
   value: string | null;
 }
 
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+    }
+  };
+
+  return (
+    <button
+      className="btn btn-ghost btn-sm"
+      onClick={handleCopy}
+      title={copied ? "Copied!" : "Copy to clipboard"}
+      style={{
+        padding: "4px 8px",
+        minHeight: "unset",
+        color: copied ? "#10b981" : "currentColor",
+        opacity: copied ? 1 : 0.6,
+        transition: "all 0.2s ease",
+        transform: copied ? "scale(1.05)" : "scale(1)",
+        display: "flex",
+        alignItems: "center",
+        gap: "4px"
+      }}
+    >
+      {copied ? (
+        <>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span style={{ fontSize: "0.72rem", color: "#10b981", fontWeight: 700 }}>Copied!</span>
+        </>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 function AttributeValue({ attrKey, value }: AttributeValueProps) {
   const [revealed, setRevealed] = useState(false);
   const isPass = isPasswordKey(attrKey);
@@ -64,7 +111,7 @@ function AttributeValue({ attrKey, value }: AttributeValueProps) {
 
   if (isPass) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
         <span
           className={`attribute-value is-password font-mono`}
           style={{ letterSpacing: revealed ? "normal" : "0.2em" }}
@@ -72,54 +119,36 @@ function AttributeValue({ attrKey, value }: AttributeValueProps) {
         >
           {revealed ? value : "••••••••••••"}
         </span>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setRevealed((r) => !r)}
-          title={revealed ? "Hide" : "Reveal"}
-          style={{ padding: "2px 6px" }}
-        >
-          {revealed ? (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-              <line x1="1" y1="1" x2="23" y2="23" />
-            </svg>
-          ) : (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          )}
-        </button>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => navigator.clipboard.writeText(value)}
-          title="Copy to clipboard"
-          style={{ padding: "2px 6px" }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setRevealed((r) => !r)}
+            title={revealed ? "Hide" : "Reveal"}
+            style={{ padding: "4px 8px", minHeight: "unset", opacity: 0.6 }}
+          >
+            {revealed ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+          <CopyButton value={value} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
       <span className="attribute-value font-mono">{value}</span>
-      <button
-        className="btn btn-ghost btn-sm"
-        onClick={() => navigator.clipboard.writeText(value)}
-        title="Copy"
-        style={{ padding: "2px 6px", opacity: 0.5 }}
-      >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-        </svg>
-      </button>
+      <CopyButton value={value} />
     </div>
   );
 }
@@ -186,7 +215,7 @@ function PasswordHistoryCollapse({ history }: PasswordHistoryCollapseProps) {
                 borderBottom: i < history.length - 1 ? "1px solid rgba(255, 255, 255, 0.04)" : "none",
               }}
             >
-              <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }} suppressHydrationWarning>
                 {new Date(h.changedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}:
               </span>
               <AttributeValue attrKey="password" value={h.password} />
@@ -272,9 +301,9 @@ export default function AccountDetail({
                 <ProviderIcon name={providerName} url={getFirstUrl(account)} size={32} />
                 <div>
                   <div style={{ fontSize: "0.875rem", fontWeight: 600 }}>
-                    Account {idx + 1}
+                    {account.attributes["Title"] || account.attributes["title"] || account.attributes["Label"] || account.attributes["label"] || `Account ${idx + 1}`}
                   </div>
-                  <div className="account-card-meta">
+                   <div className="account-card-meta" suppressHydrationWarning>
                     Added {formatDate(account.createdAt)}
                     {account.updatedAt !== account.createdAt && (
                       <> · Updated {formatDate(account.updatedAt)}</>
@@ -335,7 +364,10 @@ export default function AccountDetail({
 
             <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem" }}>
               {Object.entries(account.attributes)
-                .filter(([key]) => key.toLowerCase() !== "status")
+                .filter(([key]) => {
+                  const k = key.toLowerCase();
+                  return k !== "status" && k !== "title" && k !== "label";
+                })
                 .map(([key, value]) => {
                   const isPass = isPasswordKey(key);
                   return (

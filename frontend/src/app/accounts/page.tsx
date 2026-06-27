@@ -38,6 +38,7 @@ export default function DashboardPage() {
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [activeBackendFilter, setActiveBackendFilter] = useState<string | null>(null);
 
   // Mobile state: sidebar drawer open/close, and whether we're viewing detail
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -90,9 +91,23 @@ export default function DashboardPage() {
   const filteredProviderCount = Object.keys(filteredGrouped).length;
   const totalProviderCount = Object.keys(grouped).length;
 
-  const loadAccounts = useCallback(async () => {
+  const loadAccounts = useCallback(async (forcedFilter?: string | null) => {
     try {
-      const data = await accountsApi.list();
+      setIsLoading(true);
+      let filter: string | undefined = undefined;
+
+      if (forcedFilter !== undefined) {
+        filter = forcedFilter || undefined;
+      } else if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const filterParam = params.get("filter");
+        if (filterParam === "weak" || filterParam === "duplicate" || filterParam === "old") {
+          filter = filterParam;
+        }
+      }
+
+      setActiveBackendFilter(filter || null);
+      const data = await accountsApi.list(filter);
       setAccounts(data.accounts);
       setGrouped(data.grouped);
     } catch (err) {
@@ -106,9 +121,41 @@ export default function DashboardPage() {
     }
   }, [router]);
 
+  const handleClearBackendFilter = useCallback(() => {
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("filter");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+    loadAccounts(null);
+  }, [loadAccounts]);
+
   useEffect(() => {
     loadAccounts();
   }, [loadAccounts]);
+
+  // Apply URL query parameters on load to support direct navigation/deep-linking from the dashboard
+  useEffect(() => {
+    if (!isLoading && Object.keys(grouped).length > 0 && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const providerParam = params.get("provider");
+      const searchParam = params.get("search");
+      const filterParam = params.get("filter");
+
+      if (providerParam && grouped[providerParam]) {
+        setSelectedProvider(providerParam);
+        setMobileView("detail");
+      }
+      if (searchParam) {
+        setSearchQuery(searchParam);
+      }
+      if (filterParam) {
+        if (filterParam === "Active" || filterParam === "Disable" || filterParam === "Deleted") {
+          setFilterStatus(filterParam as FilterStatus);
+        }
+      }
+    }
+  }, [isLoading, grouped]);
 
 
 
@@ -317,6 +364,44 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="main-panel-body">
+                      {activeBackendFilter && (
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "0.85rem 1.25rem",
+                          background: "var(--accent-warning-dim)",
+                          border: "1px solid rgba(251, 191, 36, 0.3)",
+                          borderRadius: "var(--radius-lg)",
+                          marginBottom: "1.25rem",
+                          fontSize: "0.88rem",
+                          color: "var(--text-primary)"
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                            <span style={{ fontSize: "1.1rem" }}>
+                              {activeBackendFilter === "weak" ? "🔑" : activeBackendFilter === "duplicate" ? "🔁" : "🕐"}
+                            </span>
+                            <span>
+                              {activeBackendFilter === "weak" && "Showing only accounts with weak passwords needing update."}
+                              {activeBackendFilter === "duplicate" && "Showing only accounts with duplicate passwords that share values."}
+                              {activeBackendFilter === "old" && "Showing only accounts that require password rotation."}
+                            </span>
+                          </div>
+                          <button 
+                            className="btn btn-ghost btn-sm"
+                            style={{ 
+                              color: "var(--accent-warning)", 
+                              padding: "0.25rem 0.75rem", 
+                              minHeight: "unset",
+                              fontSize: "0.82rem",
+                              fontWeight: 600
+                            }}
+                            onClick={handleClearBackendFilter}
+                          >
+                            Clear Filter
+                          </button>
+                        </div>
+                      )}
                       {filteredProviderCount === 0 ? (
                         <div className="no-results-state">
                           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--border-strong)" strokeWidth="1.5">
