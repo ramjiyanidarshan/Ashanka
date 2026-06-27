@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { settingsApi, sessionsApi, Session } from "@/lib/api";
@@ -417,6 +417,21 @@ export default function SettingsPage() {
     </div>
   );
 
+  const navRef = useRef<HTMLElement>(null);
+  const allSectionKeys: SectionKey[] = navGroups.flatMap((g) => g.keys);
+
+  function stepSection(dir: "left" | "right") {
+    const idx = allSectionKeys.indexOf(activeSection);
+    const next = dir === "right"
+      ? allSectionKeys[Math.min(idx + 1, allSectionKeys.length - 1)]
+      : allSectionKeys[Math.max(idx - 1, 0)];
+    setActiveSection(next);
+    // Scroll the active pill into view after the state update
+    setTimeout(() => {
+      navRef.current?.querySelector(".settings-nav-item.active")?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    }, 50);
+  }
+
   return (
     <AppShell>
       <div className="settings-page animate-fade-in">
@@ -429,32 +444,56 @@ export default function SettingsPage() {
 
         <div className="settings-layout">
           {/* ── Side Nav ── */}
-          <nav className="settings-nav">
-            <div className="settings-nav-header">
-              <span className="settings-nav-brand-dot" />
-              Configuration
-            </div>
-            {navGroups.map((group) => (
-              <div key={group.label} className="settings-nav-group">
-                <div className="settings-nav-group-label">{group.label}</div>
-                <div className="settings-nav-group-items">
-                  {group.keys.map((key) => {
-                    const item = navItems.find((n) => n.key === key)!;
-                    return (
-                      <button
-                        key={key}
-                        className={`settings-nav-item${activeSection === key ? " active" : ""}`}
-                        onClick={() => setActiveSection(key)}
-                      >
-                        <span className="settings-nav-icon">{item.icon}</span>
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
+          <div className="settings-nav-wrap">
+            <button
+              className="settings-nav-scroll-btn settings-nav-scroll-left"
+              onClick={() => stepSection("left")}
+              aria-label="Previous section"
+              disabled={allSectionKeys.indexOf(activeSection) === 0}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+
+            <nav ref={navRef} className="settings-nav">
+              <div className="settings-nav-header">
+                <span className="settings-nav-brand-dot" />
+                Configuration
               </div>
-            ))}
-          </nav>
+              {navGroups.map((group) => (
+                <div key={group.label} className="settings-nav-group">
+                  <div className="settings-nav-group-label">{group.label}</div>
+                  <div className="settings-nav-group-items">
+                    {group.keys.map((key) => {
+                      const item = navItems.find((n) => n.key === key)!;
+                      return (
+                        <button
+                          key={key}
+                          className={`settings-nav-item${activeSection === key ? " active" : ""}`}
+                          onClick={() => setActiveSection(key)}
+                        >
+                          <span className="settings-nav-icon">{item.icon}</span>
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            <button
+              className="settings-nav-scroll-btn settings-nav-scroll-right"
+              onClick={() => stepSection("right")}
+              aria-label="Next section"
+              disabled={allSectionKeys.indexOf(activeSection) === allSectionKeys.length - 1}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
 
           {/* ── Main Content ── */}
           <div className="settings-content">
