@@ -350,39 +350,6 @@ export default function DashboardPage() {
                       </button>
                     </div>
 
-                    {/* ── Quick filters bar (Favorites / Expiring) ── */}
-                    {(favoriteCount > 0 || expiringCount > 0) && !activeBackendFilter && (
-                      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", padding: "0 0 0.75rem 0" }}>
-                        {favoriteCount > 0 && (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8rem", color: "#fbbf24" }}
-                            onClick={() => loadAccounts("favorites")}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2">
-                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                            </svg>
-                            {favoriteCount} Favorite{favoriteCount !== 1 ? "s" : ""}
-                          </button>
-                        )}
-                        {expiringCount > 0 && (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8rem", color: "#f43f5e" }}
-                            onClick={() => loadAccounts("expiring")}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                              <line x1="12" y1="9" x2="12" y2="13"/>
-                              <line x1="12" y1="17" x2="12.01" y2="17"/>
-                            </svg>
-                            {expiringCount} Password{expiringCount !== 1 ? "s" : ""} Expiring
-                          </button>
-                        )}
-                      </div>
-                    )}
 
                     {/* ── Search & Filter toolbar ── */}
                     <div className="accounts-toolbar">
@@ -429,12 +396,28 @@ export default function DashboardPage() {
                           <button
                             key={value}
                             type="button"
-                            className={`filter-chip${filterStatus === value ? ` active${value !== "all" ? ` status-${value.toLowerCase()}` : ""}` : ""}`}
-                            onClick={() => setFilterStatus(value)}
+                            className={`filter-chip${filterStatus === value && activeBackendFilter !== "favorites" ? ` active${value !== "all" ? ` status-${value.toLowerCase()}` : ""}` : ""}`}
+                            onClick={() => { handleClearBackendFilter(); setFilterStatus(value); }}
                           >
                             {label}
                           </button>
                         ))}
+
+                        {/* Divider */}
+                        <span className="filter-group-divider" />
+
+                        {/* Favorites chip */}
+                        <button
+                          type="button"
+                          className={`filter-chip filter-chip-fav${activeBackendFilter === "favorites" ? " active" : ""}`}
+                          onClick={() => activeBackendFilter === "favorites" ? handleClearBackendFilter() : loadAccounts("favorites")}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill={activeBackendFilter === "favorites" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                          Favorites
+                          {favoriteCount > 0 && <span className="filter-chip-fav-count">{favoriteCount}</span>}
+                        </button>
                       </div>
 
                       {isFiltered && (
@@ -576,11 +559,8 @@ export default function DashboardPage() {
                                 <div className="provider-card-icon-wrapper" style={{ position: "relative" }}>
                                   <ProviderIcon name={provider} url={firstUrl} size={42} />
                                   {hasFavorite && (
-                                    <span style={{
-                                      position: "absolute", top: -4, right: -4,
-                                      color: "#fbbf24", lineHeight: 1,
-                                    }}>
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+                                    <span className="fav-card-badge">
+                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="1">
                                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                                       </svg>
                                     </span>

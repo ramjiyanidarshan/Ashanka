@@ -4254,6 +4254,147 @@ pre {
   font-weight: 500;
 }
 
+/* ─── Favorites UI ──────────────────────────────────────────────────────────── */
+
+/* Quick filter bar wrapper */
+.quick-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0 0 0.875rem 0;
+  align-items: center;
+}
+
+/* Favorites pill button */
+.fav-quick-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.875rem 0.4rem 0.625rem;
+  background: linear-gradient(135deg, rgba(251,191,36,0.14) 0%, rgba(245,158,11,0.07) 100%);
+  border: 1px solid rgba(251,191,36,0.35);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.fav-quick-filter:hover {
+  background: linear-gradient(135deg, rgba(251,191,36,0.24) 0%, rgba(245,158,11,0.14) 100%);
+  border-color: rgba(251,191,36,0.55);
+  box-shadow: 0 0 18px rgba(251,191,36,0.18);
+  transform: translateY(-1px);
+}
+
+.fav-quick-filter-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(251,191,36,0.45);
+}
+
+.fav-quick-filter-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fbbf24;
+  letter-spacing: 0.01em;
+}
+
+.fav-quick-filter-count {
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: rgba(251,191,36,0.18);
+  border: 1px solid rgba(251,191,36,0.35);
+  color: #f59e0b;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  min-width: 20px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Expiring passwords pill */
+.expiring-quick-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.875rem;
+  background: rgba(244,63,94,0.08);
+  border: 1px solid rgba(244,63,94,0.25);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f43f5e;
+  transition: all 0.2s ease;
+}
+
+.expiring-quick-filter:hover {
+  background: rgba(244,63,94,0.14);
+  border-color: rgba(244,63,94,0.4);
+  transform: translateY(-1px);
+}
+
+/* Provider card favorite badge (glowing circle) */
+.fav-card-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(251,191,36,0.55), 0 2px 4px rgba(0,0,0,0.2);
+  border: 1.5px solid rgba(255,255,255,0.25);
+}
+
+/* Account detail: Save/Unsave button */
+.btn-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-fav:hover:not(.is-fav) {
+  background: rgba(251,191,36,0.08);
+  border-color: rgba(251,191,36,0.3);
+  color: #fbbf24;
+}
+
+.btn-fav.is-fav {
+  background: linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(245,158,11,0.1) 100%);
+  border-color: rgba(251,191,36,0.45);
+  color: #fbbf24;
+  box-shadow: 0 0 14px rgba(251,191,36,0.18);
+}
+
+.btn-fav.is-fav:hover {
+  background: rgba(251,191,36,0.1);
+  border-color: rgba(251,191,36,0.3);
+  box-shadow: none;
+}
+
 /* History log layout alignment */
 .history-wrapper {
   padding-left: 140px;
@@ -4478,6 +4619,49 @@ pre {
   background: var(--accent-danger-dim);
   border-color: rgba(248, 113, 113, 0.35);
   color: var(--accent-danger);
+}
+
+/* Thin vertical divider between status chips and extras */
+.filter-group-divider {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--border-default);
+  margin: 0 0.2rem;
+  flex-shrink: 0;
+}
+
+/* Favorites chip variant */
+.filter-chip-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.filter-chip-fav.active {
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.filter-chip-fav:hover:not(.active) {
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.07);
+}
+
+.filter-chip-fav-count {
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #f59e0b;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  line-height: 1.55;
+  min-width: 16px;
+  text-align: center;
 }
 
 .accounts-results-count {
