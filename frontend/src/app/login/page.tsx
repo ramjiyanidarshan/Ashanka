@@ -29,14 +29,14 @@ export default function LoginPage() {
     try {
       if (mfaRequired) {
         await authApi.verifyMfa(tempToken, mfaCode);
-        router.push("/");
+        router.push("/dashboard");
       } else {
         const res = await authApi.login(username, password);
         if (res.mfaRequired && res.tempToken) {
           setMfaRequired(true);
           setTempToken(res.tempToken);
         } else {
-          router.push("/");
+          router.push("/dashboard");
         }
       }
     } catch (err) {

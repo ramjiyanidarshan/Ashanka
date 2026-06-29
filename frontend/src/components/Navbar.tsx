@@ -13,7 +13,7 @@ interface NavbarProps {
 
 const NAV_LINKS = [
   {
-    href: "/",
+    href: "/dashboard",
     label: "Dashboard",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -76,7 +76,7 @@ export default function Navbar({ onImport, onExport }: NavbarProps) {
     <>
       <nav className="navbar">
         {/* Brand */}
-        <Link href="/" className="navbar-brand">
+        <Link href="/dashboard" className="navbar-brand">
           <div className="navbar-brand-icon" style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", boxShadow: "none", padding: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" width="32" height="32" alt="अशङ्क logo" style={{ display: "block" }} />

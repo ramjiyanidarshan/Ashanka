@@ -33,7 +33,7 @@ export async function GET() {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="veshtit-export-${new Date().toISOString().split("T")[0]}.json"`,
+        "Content-Disposition": `attachment; filename="ashanka-export-${new Date().toISOString().split("T")[0]}.json"`,
       },
     });
   } catch (error) {

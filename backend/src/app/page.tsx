@@ -1,7 +1,7 @@
 export default function BackendPage() {
   return (
     <main style={{ fontFamily: "monospace", padding: "2rem" }}>
-      <h1>Veshtit Backend API</h1>
+      <h1>Ashanka Backend API</h1>
       <p>This is the API server. All endpoints are under <code>/api/</code></p>
       <ul>
         <li>POST /api/auth/login</li>
