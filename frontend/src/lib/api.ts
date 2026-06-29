@@ -188,6 +188,20 @@ export const accountsApi = {
     request<{ success: boolean }>(`/api/accounts/${id}`, {
       method: "DELETE",
     }),
+
+  share: (id: string, expiresIn: number | null, allowedAttributes: string[]) =>
+    request<{ token: string }>(`/api/accounts/${id}/share`, {
+      method: "POST",
+      body: JSON.stringify({ expiresIn, allowedAttributes }),
+    }),
+
+  getShares: (id: string) =>
+    request<{ links: any[] }>(`/api/accounts/${id}/share`),
+
+  revokeShare: (id: string, linkId: string) =>
+    request<{ success: boolean }>(`/api/accounts/${id}/share?linkId=${linkId}`, {
+      method: "DELETE",
+    }),
 };
 
 // ─── सन्दूक ──────────────────────────────────────────────────────────────────
@@ -267,6 +281,12 @@ export const auditLogsApi = {
     const qs = params.toString();
     return request<AuditLogsResponse>(`/api/audit-logs${qs ? `?${qs}` : ""}`);
   },
+};
+
+// ─── Share ────────────────────────────────────────────────────────────────────
+
+export const shareApi = {
+  get: (token: string) => request<any>(`/api/share/${token}`),
 };
 
 export { ApiError };

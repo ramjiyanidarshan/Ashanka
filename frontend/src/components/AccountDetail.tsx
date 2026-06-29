@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Account } from "@/lib/types";
 import { getStatusOption } from "./StatusDropdown";
 import ProviderIcon from "./ProviderIcon";
+import ShareModal from "./ShareModal";
 
 interface AccountDetailProps {
   accounts: Account[];
@@ -239,6 +240,8 @@ export default function AccountDetail({
   onToggleFavorite,
   onMoveToVault,
 }: AccountDetailProps) {
+  const [shareAccount, setShareAccount] = useState<Account | null>(null);
+
   if (accounts.length === 0) {
     return (
       <div className="main-panel">
@@ -303,7 +306,7 @@ export default function AccountDetail({
         {accounts.map((account, idx) => (
           <div key={account._id} className="account-card" id={`account-card-${account._id}`}>
             <div className="account-card-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", minWidth: 0, flex: "1 1 0", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", minWidth: "180px", flex: "1 1 auto", overflow: "hidden" }}>
                 <ProviderIcon name={providerName} url={getFirstUrl(account)} size={32} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: "0.875rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -318,7 +321,7 @@ export default function AccountDetail({
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {/* Expiry badge */}
                 {account.isExpired && (
                   <span style={{
@@ -359,7 +362,7 @@ export default function AccountDetail({
                   );
                 })()}
 
-                <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "0.375rem", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {/* Favorite toggle */}
                 {onToggleFavorite && (
                   <button
@@ -388,6 +391,21 @@ export default function AccountDetail({
                     {account.isVault ? "Remove" : "सन्दूक"}
                   </button>
                 )}
+                <button
+                  id={`share-account-${account._id}`}
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShareAccount(account)}
+                  title="Share account"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                  </svg>
+                  Share
+                </button>
                 <button
                   id={`edit-account-${account._id}`}
                   className="btn btn-secondary btn-sm"
@@ -464,6 +482,14 @@ export default function AccountDetail({
         ))}
         </div>
       </div>
+      
+      {shareAccount && (
+        <ShareModal
+          isOpen={true}
+          onClose={() => setShareAccount(null)}
+          account={shareAccount}
+        />
+      )}
     </div>
   );
 }

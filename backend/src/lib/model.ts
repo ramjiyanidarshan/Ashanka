@@ -189,3 +189,16 @@ export interface AuditLogDocument extends MinimalDocument {
 }
 
 export const AuditLogModel = new Model<AuditLogDocument>("auditLogs");
+
+/** Model for shared links (magic links) */
+export interface SharedLinkDocument extends MinimalDocument {
+  _id?: ObjectId;
+  accountId: string;
+  token: string;
+  expiresAt: Date | null;
+  allowedAttributes: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const SharedLinkModel = new Model<SharedLinkDocument>("sharedLinks");

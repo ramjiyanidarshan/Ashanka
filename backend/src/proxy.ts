@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/api/auth/login", "/api/auth/verify-mfa"];
+const PUBLIC_PATHS = ["/api/auth/login", "/api/auth/verify-mfa", "/api/share"];
 
 // ── In-memory terminated-session cache ───────────────────────────────────────
 // Refreshed from DB at most once per minute to avoid per-request DB hits.
