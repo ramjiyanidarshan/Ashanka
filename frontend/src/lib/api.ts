@@ -9,6 +9,9 @@ import type {
   AuditLogsResponse,
   TagsResponse,
   VaultStatus,
+  LoginCredentials,
+  RegisterCredentials,
+  AuthResponse
 } from "./types";
 
 const BACKEND_URL =
@@ -46,11 +49,19 @@ async function request<T>(
 }
 
 export const authApi = {
-  login: (username: string, password: string) =>
-    request<{ success: boolean; username?: string; mfaRequired?: boolean; tempToken?: string }>("/api/auth/login", {
+  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    return request<AuthResponse>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
-    }),
+      body: JSON.stringify(credentials),
+    });
+  },
+
+  register: async (credentials: RegisterCredentials): Promise<AuthResponse> => {
+    return request<AuthResponse>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    });
+  },
 
   verifyMfa: (tempToken: string, code: string) =>
     request<{ success: boolean; username: string }>("/api/auth/verify-mfa", {
@@ -62,7 +73,26 @@ export const authApi = {
     request<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
 
   verify: () =>
-    request<{ authenticated: boolean; username: string | null; sessionId: string | null }>("/api/auth/verify"),
+    request<{ authenticated: boolean; username: string | null; role: string; features: { vault: boolean }; sessionId: string | null }>("/api/auth/verify"),
+};
+
+// ─── Admin ───────────────────────────────────────────────────────────────────
+
+export const adminApi = {
+  getUsers: () =>
+    request<{ users: any[] }>("/api/admin/users"),
+
+  updateUser: (userId: string, updates: any) =>
+    request<{ success: boolean }>(`/api/admin/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    }),
+
+  getAuditLogs: () =>
+    request<{ logs: any[] }>("/api/admin/audit"),
+
+  getMetrics: () =>
+    request<{ metrics: { totalUsers: number; activeUsers: number; totalAccounts: number; totalLinks: number; totalAuditLogs: number; activeSessions: number } }>("/api/admin/metrics"),
 };
 
 // ─── Settings ────────────────────────────────────────────────────────────────

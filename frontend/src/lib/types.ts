@@ -110,3 +110,27 @@ export interface TagsResponse {
 export type VeshtitJson = {
   [serviceProvider: string]: Record<string, string | null>[];
 };
+
+// ─── Auth Types ────────────────────────────────────────────────────────────────
+
+export interface LoginCredentials {
+  identifier?: string;
+  username?: string;
+  password?: string;
+}
+
+export interface RegisterCredentials {
+  email?: string;
+  username?: string;
+  password?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  username?: string;
+  role?: string;
+  features?: { vault?: boolean };
+  mfaRequired?: boolean;
+  tempToken?: string;
+  error?: string;
+}

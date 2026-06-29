@@ -40,9 +40,10 @@ function computeExpiryStatus(
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const userId = _request.headers.get("x-auth-userid");
     const account = await AccountModel.findById(id);
 
-    if (!account) {
+    if (!account || account.userId !== userId) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
@@ -94,8 +95,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { serviceProvider, attributes, tags, isFavorite, isVault } = body;
 
     const updateData: Record<string, unknown> = {};
+    const userId = request.headers.get("x-auth-userid");
     const existingForVault = await AccountModel.findById(id);
-    if (!existingForVault) {
+    if (!existingForVault || existingForVault.userId !== userId) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
@@ -118,6 +120,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (isVault !== undefined) {
       const shouldVault = Boolean(isVault);
       if (shouldVault) {
+        // Check if user has vault feature enabled
+        const featuresHeader = request.headers.get("x-auth-features");
+        const features = featuresHeader ? JSON.parse(featuresHeader) : { vault: true };
+        if (features.vault === false) {
+          return NextResponse.json({ error: "Sanduk feature is restricted for your account." }, { status: 403 });
+        }
+
         const vaultStatus = await getVaultStatus(request);
         if (!vaultStatus.mfaEnabled) {
           return NextResponse.json(
@@ -223,8 +232,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const userId = _request.headers.get("x-auth-userid");
     const account = await AccountModel.findById(id);
-    if (!account) {
+    if (!account || account.userId !== userId) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 

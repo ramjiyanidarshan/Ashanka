@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
 import crypto from "crypto";
@@ -37,14 +37,17 @@ async function decryptValue(encryptedString: string): Promise<string> {
  * GET /api/stats
  * Decrypts attributes.Status per account in JS (MongoDB can't decrypt AES-256-GCM).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = request.headers.get("x-auth-userid");
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const db = await getDb();
     const col = db.collection("accounts");
 
     // Fetch all accounts — only fields needed
     const allDocs = await col
-      .find({ isVault: { $ne: true } }, { projection: { serviceProvider: 1, attributes: 1, createdAt: 1 } })
+      .find({ isVault: { $ne: true }, userId }, { projection: { serviceProvider: 1, attributes: 1, createdAt: 1 } })
       .toArray();
 
     const totalAccounts = allDocs.length;

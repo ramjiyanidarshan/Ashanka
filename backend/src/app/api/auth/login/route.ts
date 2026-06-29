@@ -14,12 +14,13 @@ export async function POST(request: NextRequest) {
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: "Email/Username and password are required" },
         { status: 400 }
       );
     }
 
-    const user = await UserModel.findOne({ username } as never);
+    // `username` could be either username or email
+    const user = await UserModel.findOne({ $or: [{ email: username }, { username: username }] } as never);
 
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (user.mfaEnabled) {
-      const tempToken = await signTempToken({ username: user.username, mfaPending: true });
+      const tempToken = await signTempToken({ userId: user._id!.toString(), username: user.username, mfaPending: true });
       return NextResponse.json(
         { success: true, mfaRequired: true, tempToken },
         { status: 200 }
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
     // Create session record (fire-and-forget — must not block login)
     SessionModel.insertOne({
       sessionId,
+      userId: user._id!.toString(),
       username: user.username,
       loginAt: now,
       lastActiveAt: now,
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
       auditLog: [{ timestamp: now, action: "auth.login", details: "Signed in" }],
     }).catch(console.error);
 
-    const token = await signToken({ username: user.username, sessionId });
+    const token = await signToken({ userId: user._id!.toString(), username: user.username, sessionId, role: user.role, status: user.status, features: user.features });
     const cookieHeader = buildAuthCookieHeader(token);
 
     return NextResponse.json(

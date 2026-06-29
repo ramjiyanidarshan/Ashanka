@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
 import crypto from "crypto";
@@ -75,8 +75,11 @@ async function checkHibp(password: string): Promise<number> {
  * Decrypts all account passwords server-side, analyses them, and optionally
  * checks against HaveIBeenPwned via k-anonymity (plaintext never leaves server).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = request.headers.get("x-auth-userid");
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const db = await getDb();
 
     let rotationDays = 90;
@@ -90,7 +93,7 @@ export async function GET() {
 
     const accounts = await db
       .collection("accounts")
-      .find({ isVault: { $ne: true } }, {
+      .find({ isVault: { $ne: true }, userId }, {
         projection: {
           serviceProvider: 1,
           attributes: 1,

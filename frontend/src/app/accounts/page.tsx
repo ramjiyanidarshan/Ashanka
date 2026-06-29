@@ -39,6 +39,8 @@ export default function DashboardPage() {
   const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
   const [vaultCode, setVaultCode] = useState("");
   const [vaultUnlocking, setVaultUnlocking] = useState(false);
+  const [showMfaWarning, setShowMfaWarning] = useState(false);
+  const [userFeatures, setUserFeatures] = useState<{ vault?: boolean }>({ vault: true });
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -182,6 +184,15 @@ export default function DashboardPage() {
     loadAccounts();
     loadTags();
     loadVaultStatus();
+    
+    // Fetch user features for conditional rendering
+    import("@/lib/api").then(({ authApi }) => {
+      authApi.verify().then(res => {
+        if (res.authenticated && res.features) {
+          setUserFeatures(res.features);
+        }
+      }).catch(() => {});
+    });
   }, [loadAccounts, loadTags, loadVaultStatus]);
 
   useEffect(() => {
@@ -280,8 +291,7 @@ export default function DashboardPage() {
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
-        addToast("error", "Enable MFA before using सन्दूक");
-        router.push("/settings");
+        setShowMfaWarning(true);
       } else if (err instanceof ApiError && err.status === 423) {
         addToast("error", "Unlock सन्दूक first");
         setVaultMode(true);
@@ -298,8 +308,7 @@ export default function DashboardPage() {
     setMobileView("list");
     const status = await loadVaultStatus();
     if (status?.mfaEnabled === false) {
-      addToast("info", "Enable MFA before using सन्दूक");
-      router.push("/settings");
+      setShowMfaWarning(true);
       return;
     }
     if (status?.unlocked) {
@@ -334,8 +343,7 @@ export default function DashboardPage() {
       addToast("success", "सन्दूक unlocked");
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
-        addToast("error", "Enable MFA before using सन्दूक");
-        router.push("/settings");
+        setShowMfaWarning(true);
       } else {
         addToast("error", "Invalid MFA code");
       }
@@ -438,7 +446,7 @@ export default function DashboardPage() {
                     }}
                     onBack={handleMobileBack}
                     onToggleFavorite={handleToggleFavorite}
-                    onMoveToVault={handleMoveToVault}
+                    onMoveToVault={userFeatures?.vault !== false ? handleMoveToVault : undefined}
                   />
                 ) : Object.keys(grouped).length > 0 ? (
                   <div className="main-panel font-sans">
@@ -454,14 +462,16 @@ export default function DashboardPage() {
                       >
                         + Add Account
                       </button>
-                      {vaultMode ? (
-                        <button className="btn btn-secondary btn-sm" onClick={handleCloseVault}>
-                          Exit सन्दूक
-                        </button>
-                      ) : (
-                        <button className="btn btn-secondary btn-sm" onClick={handleOpenVault}>
-                          सन्दूक
-                        </button>
+                      {userFeatures?.vault !== false && (
+                        vaultMode ? (
+                          <button className="btn btn-secondary btn-sm" onClick={handleCloseVault}>
+                            Exit सन्दूक
+                          </button>
+                        ) : (
+                          <button className="btn btn-secondary btn-sm" onClick={handleOpenVault}>
+                            सन्दूक
+                          </button>
+                        )
                       )}
                     </div>
 
@@ -533,17 +543,19 @@ export default function DashboardPage() {
                           Favorites
                           {favoriteCount > 0 && <span className="filter-chip-fav-count">{favoriteCount}</span>}
                         </button>
-                        <button
-                          type="button"
-                          className={`filter-chip${vaultMode ? " active" : ""}`}
-                          onClick={vaultMode ? handleCloseVault : handleOpenVault}
-                        >
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="11" width="18" height="10" rx="2" />
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                          </svg>
-                          सन्दूक
-                        </button>
+                        {userFeatures?.vault !== false && (
+                          <button
+                            type="button"
+                            className={`filter-chip${vaultMode ? " active" : ""}`}
+                            onClick={vaultMode ? handleCloseVault : handleOpenVault}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="11" width="18" height="10" rx="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            सन्दूक
+                          </button>
+                        )}
                       </div>
 
                       {isFiltered && (
@@ -930,6 +942,49 @@ export default function DashboardPage() {
                 onClick={() => handleDelete(showDeleteConfirm)}
               >
                 Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MFA Warning Modal */}
+      {showMfaWarning && (
+        <div
+          className="modal-overlay"
+          onClick={(e) =>
+            e.target === e.currentTarget && setShowMfaWarning(false)
+          }
+        >
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--accent-warning)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                MFA Required
+              </h2>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                You must enable Multi-Factor Authentication (MFA) to use the <strong>सन्दूक (Vault)</strong> feature. 
+                <br /><br />
+                Would you like to proceed to your settings to enable MFA now?
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowMfaWarning(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => router.push("/settings")}
+              >
+                Go to Settings
               </button>
             </div>
           </div>

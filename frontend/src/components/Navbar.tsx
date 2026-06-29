@@ -63,6 +63,15 @@ export default function Navbar({ onImport, onExport }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string>("enduser");
+
+  useEffect(() => {
+    authApi.verify().then(res => {
+      if (res.authenticated && res.role) {
+        setUserRole(res.role);
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
@@ -71,6 +80,21 @@ export default function Navbar({ onImport, onExport }: NavbarProps) {
   }
 
   const isAccounts = pathname === "/accounts";
+
+  const currentNavLinks = [...NAV_LINKS];
+  if (userRole === "admin") {
+    currentNavLinks.push({
+      href: "/admin",
+      label: "Admin",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <polyline points="16 11 18 13 22 9" />
+        </svg>
+      )
+    });
+  }
 
   return (
     <>
@@ -81,12 +105,12 @@ export default function Navbar({ onImport, onExport }: NavbarProps) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" width="32" height="32" alt="अशङ्क logo" style={{ display: "block" }} />
           </div>
-          <span className="brand-devanagari">अशङ्क</span>
+          <span className="brand-devanagari">अशङ्क - Cloud</span>
         </Link>
 
         {/* Desktop nav links */}
         <div className="navbar-nav">
-          {NAV_LINKS.map((link) => {
+          {currentNavLinks.map((link) => {
             const active = pathname === link.href;
             return (
               <Link
@@ -159,7 +183,7 @@ export default function Navbar({ onImport, onExport }: NavbarProps) {
       )}
       <div className={`mobile-nav-drawer${mobileOpen ? " open" : ""}`}>
         <div className="mobile-nav-links">
-          {NAV_LINKS.map((link) => {
+          {currentNavLinks.map((link) => {
             const active = pathname === link.href;
             return (
               <Link

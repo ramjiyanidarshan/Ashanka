@@ -41,12 +41,25 @@ export async function GET(request: NextRequest) {
     const rotationDays = await getRotationDays();
     const url = new URL(request.url);
     const vaultMode = url.searchParams.get("vault") === "true";
+    
+    // Check if user has vault feature enabled
+    const featuresHeader = request.headers.get("x-auth-features");
+    const features = featuresHeader ? JSON.parse(featuresHeader) : { vault: true };
+    if (vaultMode && features.vault === false) {
+      return NextResponse.json({ error: "Sanduk feature is restricted for your account. Please contact an admin." }, { status: 403 });
+    }
+
     if (vaultMode) {
       const lockedResponse = await requireVaultUnlocked(request);
       if (lockedResponse) return lockedResponse;
     }
 
-    const accounts = (await AccountModel.findAll()).filter((account) =>
+    const userId = request.headers.get("x-auth-userid");
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const accounts = (await AccountModel.findBy({ userId } as never)).filter((account) =>
       vaultMode ? account.isVault === true : account.isVault !== true
     );
 
@@ -184,6 +197,13 @@ export async function POST(request: NextRequest) {
     const encryptedAttributes = await encryptAttributes(attributes);
     const shouldVault = Boolean(isVault);
     if (shouldVault) {
+      // Check if user has vault feature enabled
+      const featuresHeader = request.headers.get("x-auth-features");
+      const features = featuresHeader ? JSON.parse(featuresHeader) : { vault: true };
+      if (features.vault === false) {
+        return NextResponse.json({ error: "Sanduk feature is restricted for your account." }, { status: 403 });
+      }
+
       const vaultStatus = await getVaultStatus(request);
       if (!vaultStatus.mfaEnabled) {
         return NextResponse.json(
@@ -200,7 +220,13 @@ export async function POST(request: NextRequest) {
       )
     );
 
+    const userId = request.headers.get("x-auth-userid");
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const newAccount = await AccountModel.insertOne({
+      userId,
       serviceProvider,
       attributes: encryptedAttributes,
       tags: Array.isArray(tags) ? tags.map(String) : [],

@@ -31,7 +31,7 @@ function mask(val: string): string {
  * Returns masked configuration info and DB connection status.
  * AES key and JWT secret come from the DB (or .env bootstrap).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   let dbStatus: "connected" | "error" = "error";
   let dbLatencyMs: number | null = null;
 
@@ -94,12 +94,13 @@ export async function GET() {
     genSymbols = v === "true";
   } catch { /* use default */ }
 
-  const adminUser = await UserModel.findOne({});
+  const adminUser = await UserModel.findById(request.headers.get("x-auth-userid") || "");
   const vaultUnlockMinutes = await getVaultUnlockMinutes();
 
   return NextResponse.json({
     security: {
-      username: adminUser?.username || "admin",
+      username: adminUser?.username || "Unknown",
+      email: adminUser?.email || "Unknown",
       mfaEnabled: adminUser?.mfaEnabled || false,
     },
     encryption: {
@@ -145,9 +146,12 @@ export async function PUT(req: NextRequest) {
     if (action === "changePassword") {
       const { currentPassword, newPassword, confirmPassword } = body;
 
-      const adminUser = await UserModel.findOne({});
+      const userId = req.headers.get("x-auth-userid");
+      if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+      const adminUser = await UserModel.findById(userId);
       if (!adminUser) {
-        return NextResponse.json({ error: "Admin user not found in DB" }, { status: 404 });
+        return NextResponse.json({ error: "User not found in DB" }, { status: 404 });
       }
 
       const isValid = await bcrypt.compare(currentPassword, adminUser.passwordHash);
@@ -194,9 +198,12 @@ export async function PUT(req: NextRequest) {
         );
       }
 
-      const adminUser = await UserModel.findOne({});
+      const userId = req.headers.get("x-auth-userid");
+      if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+      const adminUser = await UserModel.findById(userId);
       if (!adminUser) {
-        return NextResponse.json({ error: "Admin user not found" }, { status: 404 });
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
       if (adminUser.username === trimmed) {
@@ -224,6 +231,9 @@ export async function PUT(req: NextRequest) {
 
     // ── Update AES Encryption Key (stored in DB, re-encrypts all accounts) ───
     if (action === "updateAesKey") {
+      const role = req.headers.get("x-auth-role");
+      if (role !== "admin") return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });
+
       const { newKey } = body as { newKey: string };
 
       if (!newKey || newKey.length !== 64 || !/^[0-9a-fA-F]+$/.test(newKey)) {
@@ -308,6 +318,9 @@ export async function PUT(req: NextRequest) {
 
     // ── Update JWT Secret (stored in DB) ─────────────────────────────────────
     if (action === "updateJwtSecret") {
+      const role = req.headers.get("x-auth-role");
+      if (role !== "admin") return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });
+
       const { newSecret } = body as { newSecret: string };
 
       if (!newSecret || newSecret.length < 32) {
@@ -332,6 +345,9 @@ export async function PUT(req: NextRequest) {
 
     // ── Ping DB ───────────────────────────────────────────────────────────────
     if (action === "testDb") {
+      const role = req.headers.get("x-auth-role");
+      if (role !== "admin") return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });
+
       try {
         const t0 = Date.now();
         const db = await getDb();

@@ -131,13 +131,14 @@ export default function ShareModal({ isOpen, onClose, account }: ShareModalProps
           {error && <div className="login-error" style={{ marginBottom: "1rem" }}>{error}</div>}
 
           {/* Active Shares List */}
-          {activeShares.length > 0 && !generatedLink && (
+          {!generatedLink && (
             <div style={{ marginBottom: "1.5rem" }}>
               <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>
                 Active Links
               </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {activeShares.map(share => (
+              {activeShares.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {activeShares.map(share => (
                   <div key={share._id} style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -177,6 +178,11 @@ export default function ShareModal({ isOpen, onClose, account }: ShareModalProps
                   </div>
                 ))}
               </div>
+              ) : (
+                <div style={{ fontSize: "0.875rem", color: "var(--text-muted)", padding: "0.5rem 0", fontStyle: "italic" }}>
+                  No active link available.
+                </div>
+              )}
             </div>
           )}
 
@@ -216,7 +222,7 @@ export default function ShareModal({ isOpen, onClose, account }: ShareModalProps
                   Expiration
                 </label>
                 <select
-                  className="input-field"
+                  className="form-input"
                   value={expiresIn === null ? "null" : expiresIn.toString()}
                   onChange={(e) => setExpiresIn(e.target.value === "null" ? null : Number(e.target.value))}
                 >
@@ -233,28 +239,42 @@ export default function ShareModal({ isOpen, onClose, account }: ShareModalProps
                 <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>
                   Attributes to Share
                 </label>
-                <div style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                  padding: "0.5rem",
-                  background: "rgba(0,0,0,0.1)",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--border-subtle)"
-                }}>
-                  {allAttributes.map((attr) => (
-                    <label key={attr} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", cursor: "pointer", color: "var(--text-primary)" }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedAttributes.includes(attr)}
-                        onChange={() => handleToggleAttribute(attr)}
-                        style={{ accentColor: "var(--primary-accent)" }}
-                      />
-                      {attr}
-                    </label>
-                  ))}
+                <div className="generator-checkbox-grid" style={{ gridTemplateColumns: "1fr", maxHeight: "250px", overflowY: "auto", margin: 0, paddingRight: "4px" }}>
+                  {allAttributes.map((attr) => {
+                    const isSelected = selectedAttributes.includes(attr);
+                    return (
+                      <button
+                        type="button"
+                        key={attr}
+                        className={`generator-checkbox-card ${isSelected ? "active" : ""}`}
+                        onClick={() => {
+                          if (!isSelected) {
+                            setSelectedAttributes([...selectedAttributes, attr]);
+                          } else {
+                            setSelectedAttributes(selectedAttributes.filter(a => a !== attr));
+                          }
+                        }}
+                        style={{ padding: "0.6rem 0.8rem", gap: "0.6rem" }}
+                      >
+                        <div style={{
+                          width: "18px", height: "18px", borderRadius: "4px",
+                          border: `1.5px solid ${isSelected ? "var(--accent-primary)" : "var(--border-strong)"}`,
+                          background: isSelected ? "var(--accent-primary)" : "transparent",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0, transition: "all 0.15s ease"
+                        }}>
+                          {isSelected && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          )}
+                        </div>
+                        <div className="checkbox-card-content">
+                          <span className="checkbox-card-title">{attr}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                   {allAttributes.length === 0 && (
                     <span style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No attributes available.</span>
                   )}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/api/auth/login", "/api/auth/verify-mfa", "/api/share"];
+const PUBLIC_PATHS = ["/api/auth/login", "/api/auth/register", "/api/auth/verify-mfa", "/api/share"];
 
 // ── In-memory terminated-session cache ───────────────────────────────────────
 // Refreshed from DB at most once per minute to avoid per-request DB hits.
@@ -70,9 +70,21 @@ export async function proxy(request: NextRequest) {
     );
   }
 
+  // Reject suspended accounts
+  if (payload.status === "suspended") {
+    return NextResponse.json(
+      { error: "Forbidden: Account is suspended" },
+      { status: 403 }
+    );
+  }
+
   // Forward auth context for downstream route handlers
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-auth-username", payload.username);
+  requestHeaders.set("x-auth-userid", payload.userId);
+  if (payload.role) requestHeaders.set("x-auth-role", payload.role);
+  if (payload.status) requestHeaders.set("x-auth-status", payload.status);
+  if (payload.features) requestHeaders.set("x-auth-features", JSON.stringify(payload.features));
   if (payload.sessionId) {
     requestHeaders.set("x-session-id", payload.sessionId);
   }

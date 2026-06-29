@@ -15,6 +15,7 @@ import { getDb } from "./db";
  */
 export interface BaseDocument extends Document {
   _id?: ObjectId;
+  userId: string;
   serviceProvider: string;
   attributes: Record<string, string | null>;
   passwordHistory?: { password: string; changedAt: Date }[];
@@ -167,9 +168,15 @@ export const AccountModel = new Model<BaseDocument>("accounts");
 export interface UserDocument extends MinimalDocument {
   _id?: ObjectId;
   username: string;
+  email: string;
   passwordHash: string;
   mfaSecret?: string;
   mfaEnabled?: boolean;
+  role: "admin" | "enduser";
+  status: "active" | "suspended";
+  features: {
+    vault: boolean;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -179,6 +186,7 @@ export const UserModel = new Model<UserDocument>("users");
 /** Model for the audit log collection */
 export interface AuditLogDocument extends MinimalDocument {
   _id?: ObjectId;
+  userId: string;
   action: string;
   entity: "account" | "settings" | "auth" | "import" | "export";
   entityId?: string;
@@ -193,6 +201,7 @@ export const AuditLogModel = new Model<AuditLogDocument>("auditLogs");
 /** Model for shared links (magic links) */
 export interface SharedLinkDocument extends MinimalDocument {
   _id?: ObjectId;
+  userId: string;
   accountId: string;
   token: string;
   expiresAt: Date | null;

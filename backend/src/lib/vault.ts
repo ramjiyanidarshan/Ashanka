@@ -31,9 +31,9 @@ export async function setVaultUnlockMinutes(value: number): Promise<number> {
 }
 
 export async function getVaultStatus(request: NextRequest) {
-  const username = request.headers.get("x-auth-username") ?? "";
+  const userId = request.headers.get("x-auth-userid") ?? "";
   const sessionId = request.headers.get("x-session-id") ?? "";
-  const user = username ? await UserModel.findOne({ username } as never) : null;
+  const user = userId ? await UserModel.findById(userId) : null;
   const unlockMinutes = await getVaultUnlockMinutes();
   const unlockedUntil = sessionId ? await getVaultUnlockedUntil(sessionId) : null;
   const now = Date.now();
@@ -50,17 +50,27 @@ export async function verifyVaultCodeAndUnlock(
   request: NextRequest,
   code: string
 ): Promise<{ ok: true; unlockedUntil: Date; unlockMinutes: number } | { ok: false; response: NextResponse }> {
-  const username = request.headers.get("x-auth-username") ?? "";
+  const featuresHeader = request.headers.get("x-auth-features");
+  if (featuresHeader) {
+    try {
+      const features = JSON.parse(featuresHeader);
+      if (features.vault === false) {
+        return { ok: false, response: NextResponse.json({ error: "सन्दूक feature is disabled for your account" }, { status: 403 }) };
+      }
+    } catch {}
+  }
+
+  const userId = request.headers.get("x-auth-userid") ?? "";
   const sessionId = request.headers.get("x-session-id") ?? "";
 
-  if (!sessionId || !username) {
+  if (!sessionId || !userId) {
     return {
       ok: false,
       response: NextResponse.json({ error: "Active session is required" }, { status: 401 }),
     };
   }
 
-  const user = await UserModel.findOne({ username } as never);
+  const user = await UserModel.findById(userId);
   if (!user?.mfaEnabled || !user.mfaSecret) {
     return {
       ok: false,
@@ -91,6 +101,16 @@ export async function verifyVaultCodeAndUnlock(
 }
 
 export async function requireVaultUnlocked(request: NextRequest): Promise<NextResponse | null> {
+  const featuresHeader = request.headers.get("x-auth-features");
+  if (featuresHeader) {
+    try {
+      const features = JSON.parse(featuresHeader);
+      if (features.vault === false) {
+        return NextResponse.json({ error: "सन्दूक feature is disabled for your account" }, { status: 403 });
+      }
+    } catch {}
+  }
+
   const status = await getVaultStatus(request);
 
   if (!status.mfaEnabled) {

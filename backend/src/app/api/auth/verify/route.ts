@@ -7,6 +7,12 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export async function GET(request: NextRequest) {
   const username = request.headers.get("x-auth-username");
+  const role = request.headers.get("x-auth-role") || "enduser";
+  const featuresHeader = request.headers.get("x-auth-features");
+  let features = { vault: true };
+  if (featuresHeader) {
+    try { features = JSON.parse(featuresHeader); } catch {}
+  }
   const sessionId = request.headers.get("x-session-id") ?? null;
-  return NextResponse.json({ authenticated: true, username, sessionId });
+  return NextResponse.json({ authenticated: true, username, role, features, sessionId });
 }

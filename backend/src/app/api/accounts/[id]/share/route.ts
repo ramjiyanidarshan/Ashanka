@@ -14,11 +14,12 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const userId = request.headers.get("x-auth-userid");
     const body = await request.json();
     const { expiresIn, allowedAttributes } = body;
 
     const account = await AccountModel.findById(id);
-    if (!account) {
+    if (!account || account.userId !== userId) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     await SharedLinkModel.insertOne({
+      userId: userId as string,
       accountId: id,
       token,
       expiresAt,
@@ -61,8 +63,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const userId = request.headers.get("x-auth-userid");
     const account = await AccountModel.findById(id);
-    if (!account) {
+    if (!account || account.userId !== userId) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
@@ -90,13 +93,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const userId = request.headers.get("x-auth-userid");
     const linkId = request.nextUrl.searchParams.get("linkId");
     if (!linkId) {
       return NextResponse.json({ error: "linkId is required" }, { status: 400 });
     }
 
     const account = await AccountModel.findById(id);
-    if (!account) {
+    if (!account || account.userId !== userId) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 

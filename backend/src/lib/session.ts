@@ -12,6 +12,7 @@ export interface SessionAuditEntry {
 export interface SessionDocument extends MinimalDocument {
   _id?: ObjectId;
   sessionId: string;
+  userId: string;
   username: string;
   loginAt: Date;
   lastActiveAt: Date;

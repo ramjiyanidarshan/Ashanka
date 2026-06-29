@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 /* ─── Feature Data for Bento Box ─────────────────────────────────────── */
@@ -22,30 +22,32 @@ const FEATURES = [
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
-    title: "Offline-First",
-    desc: "Runs entirely on your local device. No cloud servers, no third-party databases. Your vault stays where it belongs — with you.",
+    title: "सन्दूक (Secure Vault)",
+    desc: "Lock your most sensitive accounts in a time-restricted, 2FA-protected inner vault that automatically locks when you step away.",
     className: "bento-medium",
   },
   {
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
       </svg>
     ),
-    title: "Security Dashboard",
-    desc: "Real-time password health scoring, duplicate detection, and rotation alerts — all at a glance.",
+    title: "Magic Links",
+    desc: "Securely share specific credentials with time-expiring magic links. You control what is shared and when it expires.",
     className: "bento-medium",
   },
   {
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <polyline points="16 18 22 12 16 6" />
-        <polyline points="8 6 2 12 8 18" />
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    title: "Open Source",
-    desc: "Fully open for inspection. Trust through absolute transparency.",
+    title: "Admin Controls",
+    desc: "Comprehensive admin dashboard to manage users, suspend accounts, and enforce 2FA globally.",
     className: "bento-small",
   },
   {
@@ -108,6 +110,82 @@ function RevealSection({ children, className = "", delay = 0 }: { children: Reac
     <div ref={ref} className={`landing-reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
+  );
+}
+
+/* ─── GitHub Commits Component ───────────────────────────────────────── */
+function GithubCommits() {
+  const [commits, setCommits] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("https://api.github.com/repos/ramjiyanidarshan/Veshtit/commits?per_page=5")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setCommits(data);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <section className="landing-bento-section" style={{ marginTop: "4rem", marginBottom: "4rem" }} id="landing-github">
+      <RevealSection>
+        <div className="landing-section-header">
+          <h2 className="landing-section-title">
+            Recent Work
+          </h2>
+          <p className="landing-section-desc">
+            See the latest updates and improvements directly from our open-source repository.
+          </p>
+        </div>
+      </RevealSection>
+      <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "1rem", padding: "0 1.5rem" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading commits...</div>
+        ) : commits.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>No recent commits found.</div>
+        ) : (
+          commits.map((commit, i) => (
+            <RevealSection key={commit.sha} delay={i * 100}>
+              <a 
+                href={commit.html_url} 
+                target="_blank" 
+                rel="noreferrer"
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: "1rem", 
+                  padding: "1.25rem", background: "rgba(0,0,0,0.15)", 
+                  borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)",
+                  textDecoration: "none", color: "inherit", transition: "all 0.2s ease"
+                }}
+                className="github-commit-card"
+              >
+                <img 
+                  src={commit.author?.avatar_url || "https://github.com/identicons/default.png"} 
+                  alt="Author" 
+                  style={{ width: "40px", height: "40px", borderRadius: "50%" }} 
+                />
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "1rem", color: "var(--text-primary)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {commit.commit.message.split('\n')[0]}
+                  </h4>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                    <span style={{ fontWeight: 500 }}>{commit.commit.author?.name || 'Unknown'}</span>
+                    <span>•</span>
+                    <span>{new Date(commit.commit.author?.date || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  </div>
+                </div>
+                <div style={{ flexShrink: 0, color: "var(--accent-primary)", fontFamily: "monospace", fontSize: "0.85rem", background: "rgba(255,107,53,0.1)", padding: "0.2rem 0.5rem", borderRadius: "var(--radius-sm)" }}>
+                  {commit.sha.substring(0, 7)}
+                </div>
+              </a>
+            </RevealSection>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -241,6 +319,9 @@ export default function LandingPage() {
           </div>
         </RevealSection>
       </section>
+
+      {/* ─── GitHub Commits ────────────────────────────────────────── */}
+      <GithubCommits />
 
       {/* ─── Final CTA ─────────────────────────────────────────────── */}
       <section className="landing-final-cta" id="landing-cta-section">
