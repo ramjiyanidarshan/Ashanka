@@ -8,6 +8,7 @@ import type {
   ImportResolveResponse,
   AuditLogsResponse,
   TagsResponse,
+  VaultStatus,
 } from "./types";
 
 const BACKEND_URL =
@@ -89,6 +90,12 @@ export const settingsApi = {
       method: "PUT",
       body: JSON.stringify({ action: "changeUsername", newUsername }),
     }),
+
+  updateVaultSettings: (vaultUnlockMinutes: number) =>
+    request<{ ok: boolean; message: string }>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ action: "updateVaultSettings", vaultUnlockMinutes }),
+    }),
 };
 
 // ─── Sessions ─────────────────────────────────────────────────────────────────
@@ -128,10 +135,11 @@ export const sessionsApi = {
 // ─── Accounts ─────────────────────────────────────────────────────────────────
 
 export const accountsApi = {
-  list: (filter?: string, tag?: string) => {
+  list: (filter?: string, tag?: string, vault?: boolean) => {
     const params = new URLSearchParams();
     if (filter) params.set("filter", filter);
     if (tag) params.set("tag", tag);
+    if (vault) params.set("vault", "true");
     const qs = params.toString();
     return request<AccountsResponse>(`/api/accounts${qs ? `?${qs}` : ""}`);
   },
@@ -156,6 +164,7 @@ export const accountsApi = {
       attributes?: Record<string, string | null>;
       tags?: string[];
       isFavorite?: boolean;
+      isVault?: boolean;
     }
   ) =>
     request<{ account: Account }>(`/api/accounts/${id}`, {
@@ -169,9 +178,27 @@ export const accountsApi = {
       body: JSON.stringify({ isFavorite }),
     }),
 
+  moveToVault: (id: string, isVault: boolean) =>
+    request<{ account: Account }>(`/api/accounts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ isVault }),
+    }),
+
   delete: (id: string) =>
     request<{ success: boolean }>(`/api/accounts/${id}`, {
       method: "DELETE",
+    }),
+};
+
+// ─── सन्दूक ──────────────────────────────────────────────────────────────────
+
+export const vaultApi = {
+  status: () => request<VaultStatus>("/api/vault/status"),
+
+  unlock: (code: string) =>
+    request<{ success: boolean; unlockedUntil: string; unlockMinutes: number }>("/api/vault/unlock", {
+      method: "POST",
+      body: JSON.stringify({ code }),
     }),
 };
 

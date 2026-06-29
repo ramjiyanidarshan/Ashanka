@@ -18,6 +18,7 @@ export interface SessionDocument extends MinimalDocument {
   expiresAt: Date;
   logoutAt?: Date;
   terminatedAt?: Date;
+  vaultUnlockedUntil?: Date;
   status: "active" | "expired" | "logged_out" | "terminated";
   ipAddress: string;
   userAgent: string;

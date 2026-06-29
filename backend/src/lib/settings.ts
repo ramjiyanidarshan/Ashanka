@@ -96,4 +96,5 @@ export const SETTING_KEYS = {
   AES_KEY: "aes_encryption_key",
   JWT_SECRET: "jwt_secret",
   PASSWORD_ROTATION_DAYS: "password_rotation_days",
+  VAULT_UNLOCK_MINUTES: "vault_unlock_minutes",
 } as const;

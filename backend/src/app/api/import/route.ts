@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
         // Check for existing entries with the same serviceProvider
         const existingEntries = await AccountModel.findBy({
           serviceProvider,
+          isVault: { $ne: true },
         } as never);
 
         // Find a conflict: an existing entry that shares at least one matching

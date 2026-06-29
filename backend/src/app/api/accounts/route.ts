@@ -4,6 +4,7 @@ import { encryptAttributes, decryptAttributes, decrypt } from "@/lib/crypto";
 import { analyseStrength } from "@/lib/passwordStrength";
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
 import { appendAuditLog } from "@/lib/auditLog";
+import { getVaultStatus, requireVaultUnlocked } from "@/lib/vault";
 import crypto from "crypto";
 
 async function getRotationDays(): Promise<number> {
@@ -38,7 +39,16 @@ function computeExpiryStatus(
 export async function GET(request: NextRequest) {
   try {
     const rotationDays = await getRotationDays();
-    const accounts = await AccountModel.findAll();
+    const url = new URL(request.url);
+    const vaultMode = url.searchParams.get("vault") === "true";
+    if (vaultMode) {
+      const lockedResponse = await requireVaultUnlocked(request);
+      if (lockedResponse) return lockedResponse;
+    }
+
+    const accounts = (await AccountModel.findAll()).filter((account) =>
+      vaultMode ? account.isVault === true : account.isVault !== true
+    );
 
     const decrypted = await Promise.all(
       accounts.map(async (account) => {
@@ -94,7 +104,6 @@ export async function GET(request: NextRequest) {
       return { account, pwdPlain, pwdHash, hasPasswordField };
     });
 
-    const url = new URL(request.url);
     const filter = url.searchParams.get("filter");
     const tagFilter = url.searchParams.get("tag");
 
@@ -142,7 +151,7 @@ export async function GET(request: NextRequest) {
       grouped[sp].push(account);
     }
 
-    return NextResponse.json({ accounts: finalAccounts, grouped });
+    return NextResponse.json({ accounts: finalAccounts, grouped, vault: await getVaultStatus(request) });
   } catch (error) {
     console.error("GET /api/accounts error:", error);
     return NextResponse.json({ error: "Failed to fetch accounts" }, { status: 500 });
@@ -156,7 +165,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { serviceProvider, attributes, tags } = body;
+    const { serviceProvider, attributes, tags, isVault } = body;
 
     if (!serviceProvider || typeof serviceProvider !== "string") {
       return NextResponse.json(
@@ -173,6 +182,16 @@ export async function POST(request: NextRequest) {
     }
 
     const encryptedAttributes = await encryptAttributes(attributes);
+    const shouldVault = Boolean(isVault);
+    if (shouldVault) {
+      const vaultStatus = await getVaultStatus(request);
+      if (!vaultStatus.mfaEnabled) {
+        return NextResponse.json(
+          { error: "Enable MFA before using सन्दूक", mfaRequired: true },
+          { status: 403 }
+        );
+      }
+    }
 
     // Detect if any password field is present to set passwordLastChangedAt
     const hasPassword = Object.keys(attributes).some((k) =>
@@ -186,6 +205,7 @@ export async function POST(request: NextRequest) {
       attributes: encryptedAttributes,
       tags: Array.isArray(tags) ? tags.map(String) : [],
       isFavorite: false,
+      isVault: shouldVault,
       passwordLastChangedAt: hasPassword ? new Date() : undefined,
       source: "manual",
     });
@@ -194,8 +214,8 @@ export async function POST(request: NextRequest) {
       action: "account.created",
       entity: "account",
       entityId: newAccount._id?.toString(),
-      details: `Created account for ${serviceProvider}`,
-      metadata: { serviceProvider, tags },
+      details: `Created account for ${serviceProvider}${shouldVault ? " in सन्दूक" : ""}`,
+      metadata: { serviceProvider, tags, isVault: shouldVault },
     });
 
     const rotationDays = await getRotationDays();

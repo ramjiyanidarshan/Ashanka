@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AccountModel } from "@/lib/model";
+import { getDb } from "@/lib/db";
 
 /**
  * GET /api/providers
@@ -7,7 +7,8 @@ import { AccountModel } from "@/lib/model";
  */
 export async function GET() {
   try {
-    const providers = await AccountModel.distinct("serviceProvider");
+    const db = await getDb();
+    const providers = await db.collection("accounts").distinct("serviceProvider", { isVault: { $ne: true } });
     const sorted = (providers as string[]).sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: "base" })
     );

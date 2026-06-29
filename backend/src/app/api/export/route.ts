@@ -13,7 +13,7 @@ import { decryptAttributes } from "@/lib/crypto";
  */
 export async function GET() {
   try {
-    const accounts = await AccountModel.findAll();
+    const accounts = (await AccountModel.findAll()).filter((account) => account.isVault !== true);
 
     const exportData: Record<string, Record<string, string | null>[]> = {};
 

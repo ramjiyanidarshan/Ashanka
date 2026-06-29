@@ -44,7 +44,7 @@ export async function GET() {
 
     // Fetch all accounts — only fields needed
     const allDocs = await col
-      .find({}, { projection: { serviceProvider: 1, attributes: 1, createdAt: 1 } })
+      .find({ isVault: { $ne: true } }, { projection: { serviceProvider: 1, attributes: 1, createdAt: 1 } })
       .toArray();
 
     const totalAccounts = allDocs.length;

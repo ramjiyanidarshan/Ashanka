@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AccountModel } from "@/lib/model";
+import { getDb } from "@/lib/db";
 
 /**
  * GET /api/tags
@@ -7,7 +7,8 @@ import { AccountModel } from "@/lib/model";
  */
 export async function GET() {
   try {
-    const allTags = await AccountModel.distinct("tags");
+    const db = await getDb();
+    const allTags = await db.collection("accounts").distinct("tags", { isVault: { $ne: true } });
     const tags = (allTags as unknown[])
       .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
       .sort();

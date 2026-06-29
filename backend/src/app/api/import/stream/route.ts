@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AccountModel } from "@/lib/model";
 import { encryptAttributes } from "@/lib/crypto";
+import { requireVaultUnlocked } from "@/lib/vault";
 
 interface ConflictDecision {
   existingId: string;
@@ -75,6 +76,16 @@ export async function POST(req: NextRequest) {
             ignored++;
             send({ type: "progress", done: ++done, total, action: "ignore", provider: incoming.serviceProvider });
           } else if (action === "update") {
+            const existing = await AccountModel.findById(existingId);
+            if (existing?.isVault) {
+              const lockedResponse = await requireVaultUnlocked(req);
+              if (lockedResponse) {
+                const msg = `Skipped vaulted account for ${incoming.serviceProvider}`;
+                errors.push(msg);
+                send({ type: "progress", done: ++done, total, action: "error", provider: incoming.serviceProvider });
+                continue;
+              }
+            }
             await AccountModel.updateOne(existingId, {
               attributes: await encryptAttributes(incoming.attributes),
               serviceProvider: incoming.serviceProvider,

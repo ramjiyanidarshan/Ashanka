@@ -13,7 +13,7 @@ interface Settings {
   encryption: { keyMasked: string; algorithm: string };
   jwt: { secretMasked: string };
   database: { uriMasked: string; status: "connected" | "error"; latencyMs: number | null };
-  policy: { passwordRotationDays: number };
+  policy: { passwordRotationDays: number; vaultUnlockMinutes?: number };
   generator?: { length: number; uppercase: boolean; lowercase: boolean; numbers: boolean; symbols: boolean };
 }
 
@@ -84,6 +84,9 @@ export default function SettingsPage() {
   const [customDaysInput, setCustomDaysInput] = useState("90");
   const [rotationLoading, setRotationLoading] = useState(false);
   const [rotationMsg, setRotationMsg] = useState<Msg>(null);
+  const [vaultUnlockMinutes, setVaultUnlockMinutes] = useState(10);
+  const [vaultLoading, setVaultLoading] = useState(false);
+  const [vaultMsg, setVaultMsg] = useState<Msg>(null);
 
   const [genLength, setGenLength] = useState(16);
   const [genUppercase, setGenUppercase] = useState(true);
@@ -150,6 +153,7 @@ export default function SettingsPage() {
       const isPreset = [30, 90, 180, 365].includes(days);
       setIsCustomRotation(!isPreset);
       setCustomDaysInput(days.toString());
+      setVaultUnlockMinutes(settings.policy.vaultUnlockMinutes ?? 10);
     }
     if (settings?.generator) {
       setGenLength(settings.generator.length);
@@ -211,6 +215,18 @@ export default function SettingsPage() {
       if (ok) load();
     } catch { setGenMsg({ type: "error", text: "Network error" }); }
     finally { setGenLoading(false); }
+  }
+
+  async function handleUpdateVaultSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setVaultLoading(true); setVaultMsg(null);
+    try {
+      const res = await settingsApi.updateVaultSettings(vaultUnlockMinutes);
+      setVaultMsg({ type: "success", text: res.message });
+      load();
+    } catch (err: any) {
+      setVaultMsg({ type: "error", text: err.message || "Failed to update सन्दूक settings" });
+    } finally { setVaultLoading(false); }
   }
 
   async function handleGenerateMfa() {
@@ -746,6 +762,32 @@ export default function SettingsPage() {
                                 </form>
                               )}
                             </div>
+                          </div>
+
+                          {/* Divider */}
+                          <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
+
+                          {/* Vault unlock window */}
+                          <div>
+                            <h4 style={{ fontSize: "0.9rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                              सन्दूक
+                            </h4>
+                            <Alert msg={vaultMsg} />
+                            <form className="settings-form" onSubmit={handleUpdateVaultSettings}>
+                              <div className="form-group">
+                                <label className="form-label" htmlFor="vault-unlock-minutes">
+                                  Unlock Window: <span style={{ color: "var(--accent-primary)", fontWeight: 600, fontFamily: "var(--font-mono)" }}>{vaultUnlockMinutes} min</span>
+                                </label>
+                                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                                  <input id="vault-unlock-slider" type="range" min="1" max="120" className="form-range" value={vaultUnlockMinutes} style={{ flex: 1 }} onChange={(e) => setVaultUnlockMinutes(parseInt(e.target.value) || 10)} />
+                                  <input id="vault-unlock-minutes" type="number" min="1" max="120" className="form-input" value={vaultUnlockMinutes} style={{ width: "92px", textAlign: "center" }} onChange={(e) => setVaultUnlockMinutes(parseInt(e.target.value) || 10)} required />
+                                </div>
+                              </div>
+                              <button type="submit" className="btn btn-primary" disabled={vaultLoading}>
+                                {vaultLoading ? <Spinner /> : "Save सन्दूक Settings"}
+                              </button>
+                            </form>
                           </div>
 
                           {/* Divider */}

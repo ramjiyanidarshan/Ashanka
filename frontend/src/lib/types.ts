@@ -7,6 +7,7 @@ export interface Account {
   passwordHistory?: { password: string; changedAt: string }[];
   passwordLastChangedAt?: string;
   isFavorite?: boolean;
+  isVault?: boolean;
   tags?: string[];
   isExpired?: boolean;
   isExpiringSoon?: boolean;
@@ -57,6 +58,14 @@ export interface ApiError {
 export interface AccountsResponse {
   accounts: Account[];
   grouped: GroupedAccounts;
+  vault?: VaultStatus;
+}
+
+export interface VaultStatus {
+  mfaEnabled: boolean;
+  unlocked: boolean;
+  unlockedUntil: string | null;
+  unlockMinutes: number;
 }
 
 export interface ProvidersResponse {

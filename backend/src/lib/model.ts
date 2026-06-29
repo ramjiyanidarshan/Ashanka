@@ -20,6 +20,7 @@ export interface BaseDocument extends Document {
   passwordHistory?: { password: string; changedAt: Date }[];
   passwordLastChangedAt?: Date;
   isFavorite?: boolean;
+  isVault?: boolean;
   tags?: string[];
   source: "manual" | "import";
   createdAt: Date;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSetting, setSetting, invalidateSetting, SETTING_KEYS } from "@/lib/settings";
 import { UserModel } from "@/lib/model";
+import { clampVaultUnlockMinutes, getVaultUnlockMinutes, setVaultUnlockMinutes } from "@/lib/vault";
 import bcrypt from "bcryptjs";
 import fs from "fs";
 import path from "path";
@@ -94,6 +95,7 @@ export async function GET() {
   } catch { /* use default */ }
 
   const adminUser = await UserModel.findOne({});
+  const vaultUnlockMinutes = await getVaultUnlockMinutes();
 
   return NextResponse.json({
     security: {
@@ -114,6 +116,7 @@ export async function GET() {
     },
     policy: {
       passwordRotationDays: rotationDays,
+      vaultUnlockMinutes,
     },
     generator: {
       length: genLength,
@@ -349,6 +352,23 @@ export async function PUT(req: NextRequest) {
       }
       await setSetting(SETTING_KEYS.PASSWORD_ROTATION_DAYS, String(Math.round(passwordRotationDays)));
       return NextResponse.json({ ok: true, message: `Password rotation reminder set to ${Math.round(passwordRotationDays)} days.` });
+    }
+
+    // ── Update सन्दूक unlock window ─────────────────────────────────────────
+    if (action === "updateVaultSettings") {
+      const { vaultUnlockMinutes } = body as { vaultUnlockMinutes?: number };
+      if (typeof vaultUnlockMinutes !== "number" || !Number.isFinite(vaultUnlockMinutes)) {
+        return NextResponse.json({ error: "vaultUnlockMinutes must be a number" }, { status: 400 });
+      }
+
+      const minutes = clampVaultUnlockMinutes(vaultUnlockMinutes);
+      await setVaultUnlockMinutes(minutes);
+      invalidateSetting(SETTING_KEYS.VAULT_UNLOCK_MINUTES);
+
+      return NextResponse.json({
+        ok: true,
+        message: `सन्दूक unlock window set to ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      });
     }
 
     // ── Update password generator settings ────────────────────────────────────

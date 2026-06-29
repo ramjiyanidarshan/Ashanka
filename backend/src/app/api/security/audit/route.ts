@@ -90,7 +90,7 @@ export async function GET() {
 
     const accounts = await db
       .collection("accounts")
-      .find({}, {
+      .find({ isVault: { $ne: true } }, {
         projection: {
           serviceProvider: 1,
           attributes: 1,

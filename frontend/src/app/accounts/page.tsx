@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { accountsApi, tagsApi, exportApi, ApiError } from "@/lib/api";
-import type { Account, GroupedAccounts } from "@/lib/types";
+import { accountsApi, tagsApi, exportApi, vaultApi, ApiError } from "@/lib/api";
+import type { Account, GroupedAccounts, VaultStatus } from "@/lib/types";
 
 import Navbar from "@/components/Navbar";
 import AccountDetail from "@/components/AccountDetail";
@@ -35,6 +35,10 @@ export default function DashboardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Account | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [vaultMode, setVaultMode] = useState(false);
+  const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
+  const [vaultCode, setVaultCode] = useState("");
+  const [vaultUnlocking, setVaultUnlocking] = useState(false);
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,13 +105,30 @@ export default function DashboardPage() {
   const filteredProviderCount = Object.keys(filteredGrouped).length;
   const totalProviderCount = Object.keys(grouped).length;
 
-  const loadAccounts = useCallback(async (forcedFilter?: BackendFilter | undefined, forcedTag?: string | null) => {
+  const loadVaultStatus = useCallback(async () => {
+    try {
+      const status = await vaultApi.status();
+      setVaultStatus(status);
+      return status;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const loadAccounts = useCallback(async (
+    forcedFilter?: BackendFilter | undefined,
+    forcedTag?: string | null,
+    forcedVaultMode?: boolean
+  ) => {
     try {
       setIsLoading(true);
+      const shouldLoadVault = forcedVaultMode ?? vaultMode;
       let filter: string | undefined = undefined;
       let tag: string | undefined = undefined;
 
-      if (forcedFilter !== undefined) {
+      if (shouldLoadVault) {
+        filter = undefined;
+      } else if (forcedFilter !== undefined) {
         filter = forcedFilter || undefined;
       } else if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
@@ -122,19 +143,24 @@ export default function DashboardPage() {
       }
 
       setActiveBackendFilter((filter as BackendFilter) || null);
-      const data = await accountsApi.list(filter, tag);
+      const data = await accountsApi.list(filter, tag, shouldLoadVault);
       setAccounts(data.accounts);
       setGrouped(data.grouped);
+      if (data.vault) setVaultStatus(data.vault);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         router.push("/login");
+      } else if (err instanceof ApiError && (err.status === 403 || err.status === 423)) {
+        await loadVaultStatus();
+        setAccounts([]);
+        setGrouped({});
       } else {
         addToast("error", "Failed to load accounts");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [loadVaultStatus, router, vaultMode]);
 
   const loadTags = useCallback(async () => {
     try {
@@ -155,7 +181,8 @@ export default function DashboardPage() {
   useEffect(() => {
     loadAccounts();
     loadTags();
-  }, [loadAccounts, loadTags]);
+    loadVaultStatus();
+  }, [loadAccounts, loadTags, loadVaultStatus]);
 
   useEffect(() => {
     if (!isLoading && Object.keys(grouped).length > 0 && typeof window !== "undefined") {
@@ -242,6 +269,81 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleMoveToVault(account: Account, isVault: boolean) {
+    try {
+      await accountsApi.moveToVault(account._id, isVault);
+      await loadAccounts(activeBackendFilter, activeTagFilter, vaultMode);
+      addToast("success", isVault ? "Moved to सन्दूक" : "Moved out of सन्दूक");
+      if (selectedProvider && !(grouped[selectedProvider] ?? []).some((a) => a._id !== account._id)) {
+        setSelectedProvider(null);
+        setMobileView("list");
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        addToast("error", "Enable MFA before using सन्दूक");
+        router.push("/settings");
+      } else if (err instanceof ApiError && err.status === 423) {
+        addToast("error", "Unlock सन्दूक first");
+        setVaultMode(true);
+        await loadVaultStatus();
+      } else {
+        addToast("error", "Failed to update सन्दूक");
+      }
+    }
+  }
+
+  async function handleOpenVault() {
+    setVaultMode(true);
+    setSelectedProvider(null);
+    setMobileView("list");
+    const status = await loadVaultStatus();
+    if (status?.mfaEnabled === false) {
+      addToast("info", "Enable MFA before using सन्दूक");
+      router.push("/settings");
+      return;
+    }
+    if (status?.unlocked) {
+      await loadAccounts(null, null, true);
+    } else {
+      setAccounts([]);
+      setGrouped({});
+    }
+  }
+
+  async function handleCloseVault() {
+    setVaultMode(false);
+    setVaultCode("");
+    setSelectedProvider(null);
+    setMobileView("list");
+    await loadAccounts(null, null, false);
+  }
+
+  async function handleUnlockVault(e: React.FormEvent) {
+    e.preventDefault();
+    setVaultUnlocking(true);
+    try {
+      const result = await vaultApi.unlock(vaultCode);
+      setVaultStatus({
+        mfaEnabled: true,
+        unlocked: true,
+        unlockedUntil: result.unlockedUntil,
+        unlockMinutes: result.unlockMinutes,
+      });
+      setVaultCode("");
+      await loadAccounts(null, null, true);
+      addToast("success", "सन्दूक unlocked");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        addToast("error", "Enable MFA before using सन्दूक");
+        router.push("/settings");
+      } else {
+        addToast("error", "Invalid MFA code");
+      }
+    } finally {
+      setVaultUnlocking(false);
+    }
+  }
+
   async function handleDelete(account: Account) {
     try {
       await accountsApi.delete(account._id);
@@ -267,6 +369,9 @@ export default function DashboardPage() {
   // Derive expiry stats for the current view
   const expiringCount = accounts.filter((a) => a.isExpiringSoon || a.isExpired).length;
   const favoriteCount = accounts.filter((a) => a.isFavorite).length;
+  const vaultUnlockedUntilText = vaultStatus?.unlockedUntil
+    ? new Date(vaultStatus.unlockedUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   const BACKEND_FILTER_LABELS: Record<string, { icon: React.ReactNode; text: string }> = {
     weak: {
@@ -333,6 +438,7 @@ export default function DashboardPage() {
                     }}
                     onBack={handleMobileBack}
                     onToggleFavorite={handleToggleFavorite}
+                    onMoveToVault={handleMoveToVault}
                   />
                 ) : Object.keys(grouped).length > 0 ? (
                   <div className="main-panel font-sans">
@@ -348,6 +454,15 @@ export default function DashboardPage() {
                       >
                         + Add Account
                       </button>
+                      {vaultMode ? (
+                        <button className="btn btn-secondary btn-sm" onClick={handleCloseVault}>
+                          Exit सन्दूक
+                        </button>
+                      ) : (
+                        <button className="btn btn-secondary btn-sm" onClick={handleOpenVault}>
+                          सन्दूक
+                        </button>
+                      )}
                     </div>
 
 
@@ -417,6 +532,17 @@ export default function DashboardPage() {
                           </svg>
                           Favorites
                           {favoriteCount > 0 && <span className="filter-chip-fav-count">{favoriteCount}</span>}
+                        </button>
+                        <button
+                          type="button"
+                          className={`filter-chip${vaultMode ? " active" : ""}`}
+                          onClick={vaultMode ? handleCloseVault : handleOpenVault}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="11" width="18" height="10" rx="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          सन्दूक
                         </button>
                       </div>
 
@@ -612,6 +738,38 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
+                ) : vaultMode && !vaultStatus?.unlocked ? (
+                  <div className="main-panel" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <form className="empty-state" onSubmit={handleUnlockVault} style={{ maxWidth: 420, width: "100%" }}>
+                      <div className="empty-state-icon" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+                        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <rect x="3" y="11" width="18" height="10" rx="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                      </div>
+                      <p className="empty-state-title">सन्दूक</p>
+                      <p className="empty-state-desc">
+                        Enter your MFA code to unlock sensitive accounts for {vaultStatus?.unlockMinutes ?? 10} minutes.
+                      </p>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ textAlign: "center", letterSpacing: "0.25em", fontFamily: "var(--font-mono)", fontSize: "1.1rem", marginBottom: "0.75rem" }}
+                        value={vaultCode}
+                        onChange={(e) => setVaultCode(e.target.value)}
+                        placeholder="000000"
+                        maxLength={6}
+                        required
+                        autoFocus
+                      />
+                      <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center" }}>
+                        <button type="button" className="btn btn-secondary" onClick={handleCloseVault}>Cancel</button>
+                        <button type="submit" className="btn btn-primary" disabled={vaultUnlocking}>
+                          {vaultUnlocking ? "Unlocking..." : "Unlock"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 ) : (
                   <div
                     className="main-panel"
@@ -627,15 +785,21 @@ export default function DashboardPage() {
                       </div>
                       <p className="empty-state-title brand-devanagari">अशङ्क में आपका स्वागत है</p>
                       <p className="empty-state-desc">
-                        Create your first account to get started.
+                        {vaultMode
+                          ? `No sensitive accounts in सन्दूक${vaultUnlockedUntilText ? `, unlocked until ${vaultUnlockedUntilText}` : ""}.`
+                          : "Create your first account to get started."}
                       </p>
-                      <button
-                        id="get-started-btn"
-                        className="btn btn-primary"
-                        onClick={() => setModalMode("create")}
-                      >
-                        + Create First Account
-                      </button>
+                      {vaultMode ? (
+                        <button className="btn btn-secondary" onClick={handleCloseVault}>Exit सन्दूक</button>
+                      ) : (
+                        <button
+                          id="get-started-btn"
+                          className="btn btn-primary"
+                          onClick={() => setModalMode("create")}
+                        >
+                          + Create First Account
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

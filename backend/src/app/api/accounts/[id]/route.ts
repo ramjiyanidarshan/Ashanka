@@ -3,6 +3,7 @@ import { AccountModel } from "@/lib/model";
 import { encryptAttributes, decryptAttributes, encrypt, decrypt } from "@/lib/crypto";
 import { appendAuditLog } from "@/lib/auditLog";
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
+import { getVaultStatus, requireVaultUnlocked } from "@/lib/vault";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -45,6 +46,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
+    if (account.isVault) {
+      const lockedResponse = await requireVaultUnlocked(_request);
+      if (lockedResponse) return lockedResponse;
+    }
+
     let decryptedHistory: unknown = undefined;
     if (account.passwordHistory) {
       decryptedHistory = await Promise.all(
@@ -85,9 +91,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { serviceProvider, attributes, tags, isFavorite } = body;
+    const { serviceProvider, attributes, tags, isFavorite, isVault } = body;
 
     const updateData: Record<string, unknown> = {};
+    const existingForVault = await AccountModel.findById(id);
+    if (!existingForVault) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    }
+
+    if (existingForVault.isVault) {
+      const lockedResponse = await requireVaultUnlocked(request);
+      if (lockedResponse) return lockedResponse;
+    }
 
     if (serviceProvider !== undefined) {
       if (typeof serviceProvider !== "string") {
@@ -100,6 +115,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updateData.isFavorite = Boolean(isFavorite);
     }
 
+    if (isVault !== undefined) {
+      const shouldVault = Boolean(isVault);
+      if (shouldVault) {
+        const vaultStatus = await getVaultStatus(request);
+        if (!vaultStatus.mfaEnabled) {
+          return NextResponse.json(
+            { error: "Enable MFA before using सन्दूक", mfaRequired: true },
+            { status: 403 }
+          );
+        }
+      }
+      updateData.isVault = shouldVault;
+    }
+
     if (tags !== undefined) {
       updateData.tags = Array.isArray(tags) ? tags.map(String) : [];
     }
@@ -109,10 +138,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json({ error: "attributes must be an object" }, { status: 400 });
       }
 
-      const existing = await AccountModel.findById(id);
-      if (!existing) {
-        return NextResponse.json({ error: "Account not found" }, { status: 404 });
-      }
+      const existing = existingForVault;
 
       const decryptedExisting = await decryptAttributes(existing.attributes);
       const oldPassKey = Object.keys(decryptedExisting).find((k) =>
@@ -150,11 +176,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     await appendAuditLog({
       action: isFavorite !== undefined && Object.keys(body).length === 1
         ? `account.${isFavorite ? "favorited" : "unfavorited"}`
+        : isVault !== undefined && Object.keys(body).length === 1
+          ? `account.${isVault ? "vaulted" : "unvaulted"}`
         : "account.updated",
       entity: "account",
       entityId: id,
       details: `Updated account for ${updated.serviceProvider}`,
-      metadata: { serviceProvider: updated.serviceProvider, fieldsChanged: Object.keys(updateData) },
+      metadata: { serviceProvider: updated.serviceProvider, fieldsChanged: Object.keys(updateData), isVault: updated.isVault === true },
     });
 
     let decryptedHistory: unknown = undefined;
@@ -198,6 +226,11 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     const account = await AccountModel.findById(id);
     if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    }
+
+    if (account.isVault) {
+      const lockedResponse = await requireVaultUnlocked(_request);
+      if (lockedResponse) return lockedResponse;
     }
 
     const deleted = await AccountModel.deleteOne(id);

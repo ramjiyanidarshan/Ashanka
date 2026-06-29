@@ -3,7 +3,111 @@ import path from "path";
 import { execSync } from "child_process";
 import AppShell from "@/components/AppShell";
 
-export default function AboutPage() {
+type GitHubContributorApi = {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+  url: string;
+  contributions: number;
+  type: string;
+};
+
+type GitHubUserApi = {
+  name: string | null;
+  bio: string | null;
+};
+
+type Contributor = {
+  login: string;
+  name: string;
+  avatarUrl: string;
+  profileUrl: string;
+  contributions: number;
+};
+
+const FALLBACK_REPO = "ramjiyanidarshan/Veshtit";
+
+function getGithubRepoSlug() {
+  try {
+    const remote = execSync("git config --get remote.origin.url", {
+      cwd: path.join(process.cwd(), ".."),
+    }).toString().trim();
+
+    if (remote.startsWith("git@")) {
+      return remote.split(":").pop()?.replace(/\.git$/, "") || FALLBACK_REPO;
+    }
+
+    const parsed = new URL(remote);
+    return parsed.pathname.replace(/^\/+/, "").replace(/\.git$/, "") || FALLBACK_REPO;
+  } catch {
+    return FALLBACK_REPO;
+  }
+}
+
+async function githubFetch<T>(url: string): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "Veshtit-about-page",
+  };
+
+  if (process.env.GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
+  const res = await fetch(url, {
+    headers,
+    redirect: "follow",
+    next: { revalidate: 3600 },
+  });
+
+  if (!res.ok) {
+    throw new Error(`GitHub request failed: ${res.status}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+async function loadContributors(): Promise<Contributor[]> {
+  try {
+    const repo = getGithubRepoSlug();
+    const contributors = await githubFetch<GitHubContributorApi[]>(
+      `https://api.github.com/repos/${repo}/contributors?per_page=100`
+    );
+
+    const users = await Promise.all(
+      contributors
+        .filter((contributor) => contributor.type === "User")
+        .map(async (contributor) => {
+          try {
+            const profile = await githubFetch<GitHubUserApi>(contributor.url);
+            return {
+              login: contributor.login,
+              name: profile.name || contributor.login,
+              avatarUrl: contributor.avatar_url,
+              profileUrl: contributor.html_url,
+              contributions: contributor.contributions,
+            };
+          } catch {
+            return {
+              login: contributor.login,
+              name: contributor.login,
+              avatarUrl: contributor.avatar_url,
+              profileUrl: contributor.html_url,
+              contributions: contributor.contributions,
+            };
+          }
+        })
+    );
+
+    return users;
+  } catch (error) {
+    console.error("Failed to load GitHub contributors:", error);
+    return [];
+  }
+}
+
+export default async function AboutPage() {
+  const contributors = await loadContributors();
   let licenseText = "License file not found.";
   try {
     const licensePath = path.join(process.cwd(), "..", "LICENSE");
@@ -64,13 +168,50 @@ export default function AboutPage() {
               </div>
 
               <div>
-                <h4 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem", color: "var(--text-main)" }}><u>Developer Information</u></h4>
-                <p className="text-muted" style={{ marginBottom: "0.5rem" }}>Designed and developed by <strong><a href="https://www.darshanramjiyani.com">Darshan Ramjiyani</a></strong>.</p>
+                <h4 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem", color: "var(--text-main)" }}><u>Concept & Idea</u></h4>
+                <p className="text-muted" style={{ marginBottom: "0.5rem" }}>Maintain, Concept & Idea by <strong><a href="https://www.darshanramjiyani.com">Darshan Ramjiyani</a></strong>.</p>
                 <p className="text-muted" style={{ lineHeight: 1.5 }}>A highly secure, offline-first AES-256 encrypted local password manager designed to keep your sensitive accounts safe, private, and fully under your control.</p>
                 <p className="text-muted" style={{ lineHeight: 1.5, color: "var(--text-muted)", marginTop: "0.5rem" }}>अशङ्क (aśaṅka) is a registered trademark of Darshan Ramjiyani.</p>
+              </div>
+              <div>
+                <h4 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem", color: "var(--text-main)" }}><u>Credits</u></h4>
                 <p className="text-muted" style={{ lineHeight: 1.5 }}>Logo Icon by eidez on <a href="https://icon-icons.com/authors/962-eidez">Icon-Icons.com</a></p>
               </div>
 
+              <div>
+                <h4 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem", color: "var(--text-main)" }}><u>Contributors</u></h4>
+                {contributors.length > 0 ? (
+                  <div className="contributors-list">
+                    {contributors.map((contributor) => (
+                      <a
+                        key={contributor.login}
+                        className="contributor-card"
+                        href={contributor.profileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={contributor.avatarUrl}
+                          alt={`${contributor.name} GitHub profile`}
+                          width="44"
+                          height="44"
+                          className="contributor-avatar"
+                        />
+                        <span className="contributor-info">
+                          <strong>{contributor.name}</strong>
+                          <span>@{contributor.login}</span>
+                        </span>
+                        <span className="contributor-count">{contributor.contributions}</span>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted" style={{ lineHeight: 1.5 }}>
+                    Contributors are loaded from GitHub when available.
+                  </p>
+                )}
+              </div>
               <div>
                 <h4 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "0.5rem", color: "var(--text-main)" }}><u>Release</u></h4>
                 <p className="text-muted" style={{ fontSize: "0.85rem" }}>
