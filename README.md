@@ -1,4 +1,4 @@
-# Veshtit — Digital Account Manager
+# Ashanka — Digital Account Manager
 
 A secure, self-hosted digital account manager built with Next.js, MongoDB, and AES-256-GCM encryption.
 
@@ -15,7 +15,7 @@ A secure, self-hosted digital account manager built with Next.js, MongoDB, and A
 ## Project Structure
 
 ```
-Veshtit/
+Ashanka/
 ├── frontend/          # Next.js 14 (App Router) — UI
 ├── backend/           # Next.js 14 (App Router) — API only
 ├── .env               # Shared environment variables
