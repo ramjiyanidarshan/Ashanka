@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UserModel, SessionModel } from "@/lib/model";
+import { UserModel } from "@/lib/model";
+import { SessionModel } from "@/lib/session";
 import { getDb } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
